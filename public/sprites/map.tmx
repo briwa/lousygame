@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="30" height="30" tilewidth="32" tileheight="32">
+ <tileset firstgid="1" name="tmw_desert_spacing" tilewidth="32" tileheight="32" spacing="1">
+  <image source="tmw_desert_spacing.png" width="265" height="199"/>
+  <tile id="9">
+   <properties>
+    <property name="walkable" value="true"/>
+   </properties>
+  </tile>
+  <tile id="14">
+   <properties>
+    <property name="tracker" value="true"/>
+   </properties>
+  </tile>
+  <tile id="29">
+   <properties>
+    <property name="walkable" value="true"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="Layer1" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJztlM0OQDAMgIcTTrjPjm7e/+0sQiLL+keHicOXLJn266arNcbYnxVHEIspPCVAddJvEd9O7WkA2uDbcYN79ju9XHLwniVWa2ovdkdf9EJ0nh5gIGKnCKnqxJyp3ZjziTNz4xyxT80JidMBYG6Nu4G8kHsM1lp15MYsIAcv1aMpvJy3ccwJ5ed6Je+Rk1Pbq9kvkpmn5ZXO9zd7XYSrPcV1afx/qVcr5wIjr2nt
+  </data>
+ </layer>
+ <layer name="layer2" width="30" height="30">
+  <data encoding="base64" compression="zlib">
+   eJztwQEBAAAAgiD/r25IQAEAAPBoDhAAAQ==
+  </data>
+ </layer>
+</map>

@@ -1,0 +1,1 @@
+PlayerPos = new Mongo.Collection('playerpos');
