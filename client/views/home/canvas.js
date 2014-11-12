@@ -5,9 +5,9 @@ Template.canvas.rendered = function() {
 
 	userpos.observeChanges({
 		changed: function(posId, changes) {
-			var currentPlayer = CVS.MAIN.getCurrentPlayer();
-			if (posId !== currentPlayer.posId) {
-				CVS.MAIN.movePlayer(changes, posId);
+			var player = CVS.MAIN.getPlayerByPosId(posId);
+			if (player.userId !== Meteor.userId()) {
+				player.moveTo(changes);
 			}
 		}
 	})

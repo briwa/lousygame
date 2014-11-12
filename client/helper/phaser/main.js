@@ -8,7 +8,7 @@ CVS = {};
 		WORLD_WIDTH = 960,
 		WORLD_HEIGHT = 960,
 		TILESIZE = 32,
-		PLAYER_SPEED = 500; // tile per ms
+		PLAYER_SPEED = 300; // tile per ms
 
 	// the GAME object..... this is where it all started
 	var game;
@@ -97,7 +97,7 @@ CVS = {};
 	    			userId: playerObj._id
 	    		}, true);
 
-	    		var player = createPlayer( playerObj.username, playerPos, playerObj._id );
+	    		var player = new Player( playerObj.username, playerPos, playerObj._id );
 	    	}
 
 	    	currentPlayer = _.where(config.players, {
@@ -165,40 +165,66 @@ CVS = {};
 		this.posId = pos._id;
 
 		this.speed = PLAYER_SPEED;
+
+		config.players.push( this );
+
+		return this;
 	}
 
-	function createPlayer (name, pos, userId) {
-		var player = new Player(name, pos, userId);
-		config.players.push( player );
-
-		return player;
-	}
-
+	// moving player to certain position using astar for pathfinding and series of tweens based on the paths 
 	// TODO
 	// - animation during movement
+	// - tweens should be cancelled if user clicks in the middle of tweening
+	Player.prototype.moveTo = function (endPos) {
 
-	// NOTE :
-	// - hparintly tweens doesn't work if you have physics enabled, so its either physics or tweens
-	function movePlayer (pos, posId) {
-		if (config.players.length === 0) return;
+		var self = this;
 
-		var player = posId ? _.where(config.players, {
-			'posId' : posId
-		}, true) : currentPlayer;
+		game.astar.setCallbackFunction(function(paths) {
+	    	
+	    	if (paths) {
 
-		var tween = game.add.tween(player.sprite);
+		        // DEBUG
+		        // if (currentPlayer.lastPaths) {
+			       //  for(var i = 0, ilen = currentPlayer.lastPaths.length; i < ilen; i++) {
+		        //     	game.map.putTile(null, currentPlayer.lastPaths[i].x, currentPlayer.lastPaths[i].y, game.layer2);
+		        // 	}
+		        // }
+		        // currentPlayer.lastPaths = paths;
+		 
+		 		// reset current paths
+		 		self.paths = [];
 
-		// skip the first one since first one is only the start
-		for (i = 1; i < pos.length; i++) {
-			tween.to({
-				x: pos[i].x*TILESIZE, 
-				y: pos[i].y*TILESIZE,
-			}, player.speed*pos[i].dist);
-		}
+		 		var tween = game.add.tween(self.sprite);
 
-		tween.start();
+		        for(var i = 0; i < paths.length; i++) {
+		        	// DEBUG
+	            	// game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
 
+	            	var path = getDir( paths, i, self );
+	            	if (path) {
+	            		self.paths.push(path);
+
+	            		if (i !== 0) {
+		            		tween.to({
+		            			x: path.x * TILESIZE,
+		            			y: path.y * TILESIZE,
+		            		}, self.speed * path.dist );
+	            		}
+	            	}
+	        	}
+
+	        	tween.start();
+	        }
+        	
+	    });
+
+		var startTile = [getTile(this.sprite.x), getTile(this.sprite.y)];
+		var endTile = [getTile(endPos.x), getTile(endPos.y)];
+
+	    game.astar.preparePathCalculation(startTile, endTile);
+	    game.astar.calculatePath();
 	}
+
 
 	// ------------------------------
 	// players funcs END
@@ -220,45 +246,7 @@ CVS = {};
 		return Math.floor( rawPos / TILESIZE );
 	}
 
-	function findPathTo (startTile, endTile, callback) {
-
-	    game.astar.setCallbackFunction(function(paths) {
-	    	
-	    	if (paths) {
-		    	if (callback)
-		        	callback(paths);
-
-		        // DEBUG
-		        if (currentPlayer.lastPaths) {
-			        for(var i = 0, ilen = currentPlayer.lastPaths.length; i < ilen; i++) {
-		            	game.map.putTile(null, currentPlayer.lastPaths[i].x, currentPlayer.lastPaths[i].y, game.layer2);
-		        	}
-		        }
-
-		        currentPlayer.lastPaths = paths;
-		 
-		 		// reset current paths
-		 		currentPlayer.paths = [];
-
-		        for(var i = 0, ilen = paths.length; i < ilen; i++) {
-	            	game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
-
-	            	var path = getDir( paths, i );
-	            	if (path) 
-	            		currentPlayer.paths.push( path );
-	        	}
-
-	        	movePlayer( currentPlayer.paths );
-	        }
-        	
-	    });
-
-	    game.astar.preparePathCalculation(startTile, endTile);
-	    game.astar.calculatePath();
-
-	}
-
-	function getDir (paths, idx) {
+	function getDir (paths, idx, player) {
 
 		var dir,
 			dist,
@@ -290,10 +278,10 @@ CVS = {};
 			if (mode === 'horz') {
 				// get the direction by comparing x/y differences, get the distance by comparing it to the latest junction
 				dir = (paths[idx].x > paths[idx-1].x) ? 'right' : 'left';
-				dist = Math.abs( paths[idx].x - currentPlayer.paths[currentPlayer.paths.length-1].x );
+				dist = Math.abs( paths[idx].x - player.paths[player.paths.length-1].x );
 			} else {
 				dir = (paths[idx].y > paths[idx-1].y) ? 'down' : 'up';
-				dist = Math.abs( paths[idx].y - currentPlayer.paths[currentPlayer.paths.length-1].y );
+				dist = Math.abs( paths[idx].y - player.paths[player.paths.length-1].y );
 			}
 
 			paths[idx].dir = dir;
@@ -316,8 +304,10 @@ CVS = {};
 
 	// TODO: for some reason it cannot go to pos 0???
 	function onClickGameWorld (pointer) {
-		findPathTo( [getTile(currentPlayer.sprite.x), getTile(currentPlayer.sprite.y)],
-					[getTile(pointer.worldX), getTile(pointer.worldY)] );
+		currentPlayer.moveTo({
+			x: pointer.worldX,
+			y: pointer.worldY
+		});
 
 		Meteor.call('updatePlayerPos', {
 			userId: currentPlayer.userId,
@@ -348,8 +338,14 @@ CVS = {};
 		return currentPlayer;
 	}
 
-	function getAstar() {
-		return astar;
+	function getPlayerByPosId(posId) {
+
+		if (config.players.length === 0) return false;
+
+		return _.where(config.players, {
+			'posId' : posId
+		}, true);
+
 	}
 
 	var func = {
@@ -361,10 +357,8 @@ CVS = {};
 		getGame: getGame,
 		getConfig: getConfig,
 		getCurrentPlayer: getCurrentPlayer,
-		getAstar: getAstar,
+		getPlayerByPosId : getPlayerByPosId,
 
-		createPlayer : createPlayer,
-		movePlayer : movePlayer
 	}
 
 	CVS.MAIN = func;
