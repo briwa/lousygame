@@ -175,9 +175,7 @@ CVS = {};
 	}
 
 	// TODO
-	// - calculate duration properly by distance travelled
 	// - animation during movement
-	// - of course, ASTAR. one day....
 
 	// NOTE :
 	// - hparintly tweens doesn't work if you have physics enabled, so its either physics or tweens
@@ -195,7 +193,7 @@ CVS = {};
 			tween.to({
 				x: pos[i].x*TILESIZE, 
 				y: pos[i].y*TILESIZE,
-			}, 2000);
+			}, player.speed*pos[i].dist);
 		}
 
 		tween.start();
@@ -239,10 +237,8 @@ CVS = {};
 
 		        currentPlayer.lastPaths = paths;
 		 
-		 		currentPlayer.paths = [{
-		 			x: startTile[0],
-		 			y: startTile[1]
-		 		}];
+		 		// reset current paths
+		 		currentPlayer.paths = [];
 
 		        for(var i = 0, ilen = paths.length; i < ilen; i++) {
 	            	game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
@@ -251,11 +247,6 @@ CVS = {};
 	            	if (path) 
 	            		currentPlayer.paths.push( path );
 	        	}
-
-	        	currentPlayer.paths.push({
-	        		x: endTile[0],
-	        		y: endTile[1]
-	        	});
 
 	        	movePlayer( currentPlayer.paths );
 	        }
@@ -268,30 +259,46 @@ CVS = {};
 	}
 
 	function getDir (paths, idx) {
+
+		var dir,
+			dist,
+			mode;
+
+		if (idx === paths.length-1) {
+
+			// if it's a last path, bypass the check and just return the mode
+			mode = (paths[idx].x === paths[idx-1].x) ? 'vert' : 'horz';
+
+		} else 	if ( idx === 0 ) {
+
+			// if it's a first path  just return its path
+			return paths[idx];
+
+		} else if (paths[idx].x === paths[idx-1].x && paths[idx].y !== paths[idx-1].y && paths[idx].x !== paths[idx+1].x && paths[idx].y === paths[idx+1].y) {
 		
-		// only for middle paths, not first or last
-		if (!paths[idx-1] || !paths[idx+1]) return false;
-
-		var dir;
-		var dist;
-
-		if (paths[idx].x === paths[idx-1].x && paths[idx].y !== paths[idx-1].y && paths[idx].x !== paths[idx+1].x && paths[idx].y === paths[idx+1].y) {
-			
 			// their previous path is either up or down
-			dir = (paths[idx].y > paths[idx-1].y) ? 'down' : 'up';
-			dist = Math.abs( paths[idx].y - paths[idx-1].y );
+			mode = 'vert';
 
 		} else if (paths[idx].x !== paths[idx-1].x && paths[idx].y === paths[idx-1].y && paths[idx].x === paths[idx+1].x && paths[idx].y !== paths[idx+1].y) {
 
 			// their previous path is either right or left
-			dir = (paths[idx].x > paths[idx-1].x) ? 'right' : 'left';
-			dist = Math.abs( paths[idx].x - paths[idx-1].x );
+			mode = 'horz';
 
-		} 
+		}
 
-		if (dir || dist) {
+		if (mode) {
+			if (mode === 'horz') {
+				// get the direction by comparing x/y differences, get the distance by comparing it to the latest junction
+				dir = (paths[idx].x > paths[idx-1].x) ? 'right' : 'left';
+				dist = Math.abs( paths[idx].x - currentPlayer.paths[currentPlayer.paths.length-1].x );
+			} else {
+				dir = (paths[idx].y > paths[idx-1].y) ? 'down' : 'up';
+				dist = Math.abs( paths[idx].y - currentPlayer.paths[currentPlayer.paths.length-1].y );
+			}
+
 			paths[idx].dir = dir;
 			paths[idx].dist = dist;
+
 			return paths[idx];
 		} else {
 			return false;
