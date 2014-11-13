@@ -6,15 +6,16 @@ Template.canvas.rendered = function() {
 	userpos.observeChanges({
 		changed: function(posId, changes) {
 			var player = CVS.MAIN.getPlayerByPosId(posId);
-			if (player.userId !== Meteor.userId()) {
-				player.moveTo(changes);
-			}
+
+			if (changes.x === undefined) changes.x = player.sprite.x;
+			if (changes.y === undefined) changes.y = player.sprite.y;
+
+			player.moveTo(changes);
 		}
 	})
 
 	CVS.MAIN.init({
 		players: users.fetch(),
-		playerpos: userpos.fetch(),
-		currentPlayerId: Meteor.userId()
+		playerpos: userpos.fetch()
 	});
 }

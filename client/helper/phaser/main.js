@@ -1,3 +1,7 @@
+// TODO
+// - convert everything to tile-based
+
+
 CVS = {};
 
 (function(){
@@ -8,7 +12,7 @@ CVS = {};
 		WORLD_WIDTH = 960,
 		WORLD_HEIGHT = 960,
 		TILESIZE = 32,
-		PLAYER_SPEED = 300; // tile per ms
+		PLAYER_SPEED = 200; // tile per ms
 
 	// the GAME object..... this is where it all started
 	var game;
@@ -101,14 +105,14 @@ CVS = {};
 	    	}
 
 	    	currentPlayer = _.where(config.players, {
-	    		userId: config.currentPlayerId
+	    		userId: Meteor.userId()
 	    	}, true);
 
+	    	// DEBUG
 	    	currentPlayer.sprite.tint = Math.random() * 0xFFFFFF;
 
 	    	game.camera.follow(currentPlayer.sprite);
 
-	        // should not always be tied with game tho, can be 'walkables' or some sort
 		    game.input.onDown.add(onClickGameWorld, this);
 
 		    game.input.addMoveCallback(onMoveMouse, this);
@@ -160,7 +164,7 @@ CVS = {};
 	var Player = function (name, pos, userId) {
 		this.game = game;
 
-		this.sprite = game.add.sprite( pos.x, pos.y, 'player' );
+		this.sprite = game.add.sprite( getTilePos(pos.x), getTilePos(pos.y), 'player' );
 		this.userId = userId;
 		this.posId = pos._id;
 
@@ -173,6 +177,7 @@ CVS = {};
 
 	// moving player to certain position using astar for pathfinding and series of tweens based on the paths 
 	// TODO
+	// - if we move and there's no path there, it shouldn't be saved
 	// - animation during movement
 	// - tweens should be cancelled if user clicks in the middle of tweening
 	Player.prototype.moveTo = function (endPos) {
@@ -225,6 +230,16 @@ CVS = {};
 	    game.astar.calculatePath();
 	}
 
+	Player.prototype.savePos = function (pos) {
+		pos = pos || {x: player.sprite.x, y: player.sprite.y};
+
+		Meteor.call('updatePlayerPos', {
+			userId: this.userId,
+			x: pos.x,
+			y: pos.y
+		})
+
+	}
 
 	// ------------------------------
 	// players funcs END
@@ -302,18 +317,11 @@ CVS = {};
 	// event funcs START
 	// ------------------------------
 
-	// TODO: for some reason it cannot go to pos 0???
 	function onClickGameWorld (pointer) {
-		currentPlayer.moveTo({
+		currentPlayer.savePos({
 			x: pointer.worldX,
 			y: pointer.worldY
 		});
-
-		Meteor.call('updatePlayerPos', {
-			userId: currentPlayer.userId,
-			x: getTilePos( pointer.worldX ),
-			y: getTilePos( pointer.worldY )
-		})
 	}
 
 	function onMoveMouse (pointer, x, y) {
