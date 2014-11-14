@@ -10,7 +10,9 @@ Template.canvas.rendered = function() {
 			if (changes.x === undefined) changes.x = player.sprite.x;
 			if (changes.y === undefined) changes.y = player.sprite.y;
 
-			player.moveTo(changes);
+			player.findPathTo(changes, function() {
+				player.paths[0]._tween.start();
+			});
 		}
 	})
 
