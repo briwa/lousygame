@@ -5,6 +5,7 @@ Template.canvas.rendered = function() {
 
 	userpos.observeChanges({
 		changed: function(posId, changes) {
+			console.log('NEW SAVE FOUND!');
 			var player = CVS.MAIN.getPlayerByPosId(posId);
 
 			if (changes.x === undefined) changes.x = player.sprite.x;

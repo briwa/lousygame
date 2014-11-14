@@ -23,6 +23,8 @@ CVS = {};
 		playerpos: [],
 		currentPlayerId: null,
 	};
+	// DEBUG
+	var clicks = 0;
 
 	// input related
 	var cursors;
@@ -195,6 +197,8 @@ CVS = {};
 
 		} else {
 
+			console.log('START FINDING A NEW PATH');
+
 			var self = this;
 
 			game.astar.setCallbackFunction(function(paths) {
@@ -228,15 +232,21 @@ CVS = {};
 		            		}, self.speed * path.dist );
 
 		            		tween.onStart.add(function() {
+		            			// sprite animation with direction goes here
+		            			if (self.paths[0])
+		            				console.log('I\'m going', self.paths[0].dir);
 			        		}, game);	        	
 
 				        	tween.onComplete.add(function() {
-			        			self.paths.shift();
+
+			        			if (self.paths) self.paths.shift();
+
 			        			if (self.paths[0]) {
 			        				self.paths[0]._tween.start();
 			        			} else {
 			        				self.paths = null;
 			        			}
+
 			        		}, game);
 
 				        	// passing path as reference
@@ -269,6 +279,8 @@ CVS = {};
 		// do not process if theres no paths, which means the clicked tile isn't accessible
 		if (!this.paths) return false;
 
+		console.log('SAVING POS');
+
 		var posTile = this.paths[this.paths.length-1];
 
 		Meteor.call('updatePlayerPos', {
@@ -279,7 +291,73 @@ CVS = {};
 
 	}
 
-	Player.prototype.stopAtNearest = function () {
+	Player.prototype.stopAtNearest = function (newPos) {
+		// sometimes when user moves to one place, they tend to change their mind and move to others
+		// in that case, we need to break the current tween, move the player to nearest tile, and start changing direction
+
+		console.log('INIT GOING TO NEAREST');
+
+		if (!this.paths) return false;
+
+		console.log('THERE IS PATH, START GOING TO NEAREST');
+
+		var nearestTile = {};
+		var duration;
+
+		switch (this.paths[0].dir) {
+			case 'up':
+				nearestTile.x = this.paths[0].x;
+				nearestTile.y = Math.floor( this.sprite.y / TILESIZE );
+				duration = Math.abs( this.sprite.y - (nearestTile.y * TILESIZE) ) / TILESIZE;
+				break;
+			case 'down':
+				nearestTile.x = this.paths[0].x;
+				nearestTile.y = Math.ceil( this.sprite.y / TILESIZE );
+				duration = Math.abs( this.sprite.y - (nearestTile.y * TILESIZE) ) / TILESIZE;
+				break;
+			case 'left':
+				nearestTile.y = this.paths[0].y;
+				nearestTile.x = Math.floor( this.sprite.x / TILESIZE );
+				duration = Math.abs( this.sprite.x - (nearestTile.x * TILESIZE) ) / TILESIZE;
+				break;
+			case 'right':
+				nearestTile.y = this.paths[0].y;
+				nearestTile.x = Math.ceil( this.sprite.x / TILESIZE );
+				duration = Math.abs( this.sprite.x - (nearestTile.x * TILESIZE) ) / TILESIZE;
+			break;
+		}
+
+		this.paths[0]._tween.stop();
+		this.paths = null;
+
+		if (duration > 0) {
+			var tween = game.add.tween(this.sprite);
+
+			tween.to({
+				x: nearestTile.x * TILESIZE,
+				y: nearestTile.y * TILESIZE
+			}, duration * this.speed);
+
+			var self = this;
+			tween.onComplete.add(function() {
+				console.log('DONE WITH TWEENING TO NEAREST');
+				self.findPathTo(newPos, function() {
+					self.savePos();
+				});
+			}, game);
+
+			tween.start();
+
+		} else {
+			// sometimes the difference between current pos and nearest tile is too small and will return the duration to zero
+			// which means we don't need tween to go to nearest, just go straight away with new paths
+
+			var self = this;
+			this.findPathTo(newPos, function() {
+				self.savePos();
+			})
+
+		}
 
 	}
 
@@ -392,12 +470,30 @@ CVS = {};
 
 	function onClickGameWorld (pointer, mouse) {
 
-		game.currentPlayer.findPathTo({
-			x: pointer.worldX,
-			y: pointer.worldY
-		}, function() {
-			game.currentPlayer.savePos();
-		});
+		// DEBUG
+		// clicks++;
+		// console.log('CLICK NUMBER', clicks);
+		// var tween = game.tweens._tweens[0];
+		// console.log('TWEENS SO FAR', tween);
+		// console.log('PATHS RIGHT NOW', game.currentPlayer.paths);
+
+		if (game.currentPlayer.paths) {
+
+			var newPos = {
+				x: pointer.worldX,
+				y: pointer.worldY
+			};
+
+			game.currentPlayer.stopAtNearest(newPos);
+
+		} else {
+			game.currentPlayer.findPathTo({
+				x: pointer.worldX,
+				y: pointer.worldY
+			}, function() {
+				game.currentPlayer.savePos();
+			});
+		}
 
 	}
 
