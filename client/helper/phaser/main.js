@@ -178,7 +178,9 @@ CVS = {};
 
 	// TODO
 	// - animation during movement
-	// - tweens should be cancelled if user clicks in the middle of tweening
+	// - changing ALL global position to TILES
+	// - we don't really have to find path just to check possible paths. disable all impossible path and walkables in click event
+	//   so any clicked path will always be possible ones (and eventually saved and triggered for movement), or it won't be processed
 	Player.prototype.findPathTo = function (endPos, callback) {
 
 		// moving player to certain position using astar for pathfinding and series of tweens based on the paths 
@@ -291,6 +293,7 @@ CVS = {};
 
 	}
 
+	// TODO : OTHER client is acting up when changing direction
 	Player.prototype.stopAtNearest = function (newPos) {
 		// sometimes when user moves to one place, they tend to change their mind and move to others
 		// in that case, we need to break the current tween, move the player to nearest tile, and start changing direction
@@ -477,20 +480,42 @@ CVS = {};
 		// console.log('TWEENS SO FAR', tween);
 		// console.log('PATHS RIGHT NOW', game.currentPlayer.paths);
 
+		// this is to decide whether we should move the player or not
+		// we shouldn't move player if :
+		// (1)	user wants to move to non-movable areas
+		// (2)	user wants to move to same tile over and over
+
+		var newPos = {
+			x: pointer.worldX,
+			y: pointer.worldY
+		};
+
+		var newPosTile = {
+			x: getTile(newPos.x),
+			y: getTile(newPos.y),
+		};
+
+		// see note (2)
+		var clickedTile = game.map.layer.data[newPosTile.y][newPosTile.x];
+		if (!clickedTile.properties.walkable) return false;
+
+		// this is to check whether the player is currently moving or not,
+		// so that we can stop current movement and make a new one if it's on the move
 		if (game.currentPlayer.paths) {
 
-			var newPos = {
-				x: pointer.worldX,
-				y: pointer.worldY
+			// see note (1)
+			var paths = game.currentPlayer.paths;
+			var destTile = {
+				x: paths[paths.length-1].x,
+				y: paths[paths.length-1].y
 			};
 
-			game.currentPlayer.stopAtNearest(newPos);
+			if (newPosTile.x !== destTile.x && newPosTile.y !== destTile.y) {
+				game.currentPlayer.stopAtNearest(newPos);
+			}
 
 		} else {
-			game.currentPlayer.findPathTo({
-				x: pointer.worldX,
-				y: pointer.worldY
-			}, function() {
+			game.currentPlayer.findPathTo(newPos, function() {
 				game.currentPlayer.savePos();
 			});
 		}
