@@ -16,7 +16,6 @@ CVS = {};
 
 	// the GAME object..... this is where it all started
 	var game;
-	var currentPlayer;
 
 	// configs and debugs
 	var config = {
@@ -104,14 +103,14 @@ CVS = {};
 	    		var player = new Player( playerObj.username, playerPos, playerObj._id );
 	    	}
 
-	    	currentPlayer = _.where(config.players, {
+	    	game.currentPlayer = _.where(config.players, {
 	    		userId: Meteor.userId()
 	    	}, true);
 
 	    	// DEBUG
-	    	currentPlayer.sprite.tint = Math.random() * 0xFFFFFF;
+	    	game.currentPlayer.sprite.tint = Math.random() * 0xFFFFFF;
 
-	    	game.camera.follow(currentPlayer.sprite);
+	    	game.camera.follow(game.currentPlayer.sprite);
 
 		    game.input.onDown.add(onClickGameWorld, this);
 
@@ -199,26 +198,40 @@ CVS = {};
 		 		// reset current paths
 		 		self.paths = [];
 
-		 		var tween = game.add.tween(self.sprite);
-
 		        for(var i = 0; i < paths.length; i++) {
 		        	// DEBUG
 	            	// game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
 
 	            	var path = getDir( paths, i, self );
+	            	
 	            	if (path) {
-	            		self.paths.push(path);
 
-	            		if (i !== 0) {
-		            		tween.to({
-		            			x: path.x * TILESIZE,
-		            			y: path.y * TILESIZE,
-		            		}, self.speed * path.dist );
-	            		}
+            			var tween = game.add.tween(self.sprite);
+
+            			tween.to({
+	            			x: path.x * TILESIZE,
+	            			y: path.y * TILESIZE,
+	            		}, self.speed * path.dist );
+
+	            		tween.onStart.add(function() {
+		        		}, game);	        	
+
+			        	tween.onComplete.add(function() {
+		        			self.paths.shift();
+		        			if (self.paths[0]) self.paths[0]._tween.start();
+		        		}, game);
+
+			        	// passing path as reference
+			        	tween._path = path;
+		        		path._tween = tween;
+
+
+		        		self.paths.push(path);
+
 	            	}
 	        	}
 
-	        	tween.start();
+	        	self.paths[0]._tween.start();
 	        }
         	
 	    });
@@ -228,16 +241,20 @@ CVS = {};
 
 	    game.astar.preparePathCalculation(startTile, endTile);
 	    game.astar.calculatePath();
+
 	}
 
 	Player.prototype.savePos = function (pos) {
-		pos = pos || {x: player.sprite.x, y: player.sprite.y};
 
 		Meteor.call('updatePlayerPos', {
 			userId: this.userId,
 			x: pos.x,
 			y: pos.y
 		})
+
+	}
+
+	Player.prototype.stopAtNearest = function () {
 
 	}
 
@@ -275,7 +292,7 @@ CVS = {};
 		} else 	if ( idx === 0 ) {
 
 			// if it's a first path  just return its path
-			return paths[idx];
+			return false;
 
 		} else if (paths[idx].x === paths[idx-1].x && paths[idx].y !== paths[idx-1].y && paths[idx].x !== paths[idx+1].x && paths[idx].y === paths[idx+1].y) {
 		
@@ -290,21 +307,27 @@ CVS = {};
 		}
 
 		if (mode) {
+
+			var prevPath = player.paths[player.paths.length-1] || {x: getTile(player.sprite.x), y: getTile(player.sprite.y)};
+
 			if (mode === 'horz') {
 				// get the direction by comparing x/y differences, get the distance by comparing it to the latest junction
 				dir = (paths[idx].x > paths[idx-1].x) ? 'right' : 'left';
-				dist = Math.abs( paths[idx].x - player.paths[player.paths.length-1].x );
+				dist = Math.abs( paths[idx].x - prevPath.x );
 			} else {
 				dir = (paths[idx].y > paths[idx-1].y) ? 'down' : 'up';
-				dist = Math.abs( paths[idx].y - player.paths[player.paths.length-1].y );
+				dist = Math.abs( paths[idx].y - prevPath.y );
 			}
 
 			paths[idx].dir = dir;
 			paths[idx].dist = dist;
 
 			return paths[idx];
+
 		} else {
+
 			return false;
+
 		}
 
 	}
@@ -317,11 +340,13 @@ CVS = {};
 	// event funcs START
 	// ------------------------------
 
-	function onClickGameWorld (pointer) {
-		currentPlayer.savePos({
+	function onClickGameWorld (pointer, mouse) {
+
+		game.currentPlayer.savePos({
 			x: pointer.worldX,
 			y: pointer.worldY
 		});
+		
 	}
 
 	function onMoveMouse (pointer, x, y) {
@@ -343,7 +368,7 @@ CVS = {};
 	}
 
 	function getCurrentPlayer() {
-		return currentPlayer;
+		return game.currentPlayer;
 	}
 
 	function getPlayerByPosId(posId) {
