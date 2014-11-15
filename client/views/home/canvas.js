@@ -4,16 +4,18 @@ Template.canvas.rendered = function() {
 	var userpos = PlayerPos.find({});
 
 	userpos.observeChanges({
-		changed: function(posId, changes) {
+		changed: function(posId, newPos) {
 			console.log('NEW SAVE FOUND!');
 			var player = CVS.MAIN.getPlayerByPosId(posId);
 
-			if (changes.x === undefined) changes.x = player.sprite.x;
-			if (changes.y === undefined) changes.y = player.sprite.y;
+			if (newPos.x === undefined) newPos.x = player.sprite.x;
+			if (newPos.y === undefined) newPos.y = player.sprite.y;
 
-			player.findPathTo(changes, function() {
-				player.paths[0]._tween.start();
-			});
+			if (player.paths) {
+				player.stopAtNearest(newPos);
+			} else {
+				player.moveTo(newPos);
+			}
 		}
 	})
 

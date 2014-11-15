@@ -22,6 +22,7 @@ CVS = {};
 		players: [],
 		playerpos: [],
 		currentPlayerId: null,
+		lastClickedTile: {}
 	};
 	// DEBUG
 	var clicks = 0;
@@ -38,7 +39,8 @@ CVS = {};
 
 		game = new Phaser.Game(CVS_WIDTH, CVS_HEIGHT, Phaser.CANVAS, 'phaser-canvas', { preload: preload, create: create, update: update, render: render });
 
-		config = cfg || config;
+		config.players = cfg.players;
+		config.playerpos = cfg.playerpos;
 
 		// DEBUG
 		window.game = game;
@@ -176,127 +178,111 @@ CVS = {};
 		return this;
 	}
 
-	// TODO
-	// - animation during movement
-	// - changing ALL global position to TILES
-	// - we don't really have to find path just to check possible paths. disable all impossible path and walkables in click event
-	//   so any clicked path will always be possible ones (and eventually saved and triggered for movement), or it won't be processed
-	Player.prototype.findPathTo = function (endPos, callback) {
+	/**
+	* Find a path for the player from current position to end position using astar plugin (easystarjs)
+	* then move it using tween
+	* TODO: - animation when moving player
+	**/
+	Player.prototype.moveTo = function (endPos) {
 
-		// moving player to certain position using astar for pathfinding and series of tweens based on the paths 
-		// first, we check if the paths are already there or not
-		// (1) 	if it's there, it means it's coming from the save callback from CURRENT client
-		//     	bcs CURRENT client needs to check whether the paths are ok to go or not, walkable or not.
-		//		to check that, we need to run this function to generate paths
-		//		if it's ok then save it to db, trigger this function and since it already has paths, run it
-		// (2)  if it's not there, it means it's coming from the save callback from OTHER client
-		//      we have the end of path and we know the paths are actually ok to go from the click check from OTHER client
-		//      but we haven't generate the paths from them. So we generate it and run it directly after it's done
+		console.log('START FINDING A NEW PATH');
 
-		if (this.paths) {
+		var self = this;
 
-			this.paths[0]._tween.start();
+		game.astar.setCallbackFunction(function(paths) {
+	    	
+	    	if (paths) {
 
-		} else {
+		        // DEBUG
+		        // if (currentPlayer.lastPaths) {
+			       //  for(var i = 0, ilen = currentPlayer.lastPaths.length; i < ilen; i++) {
+		        //     	game.map.putTile(null, currentPlayer.lastPaths[i].x, currentPlayer.lastPaths[i].y, game.layer2);
+		        // 	}
+		        // }
+		        // currentPlayer.lastPaths = paths;
+		 
+		 		// reset current paths
+		 		self.paths = [];
 
-			console.log('START FINDING A NEW PATH');
+		        for(var i = 0; i < paths.length; i++) {
+		        	// DEBUG
+	            	// game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
 
-			var self = this;
+	            	var path = getDir( paths, i, self );
+	            	
+	            	if (path) {
 
-			game.astar.setCallbackFunction(function(paths) {
-		    	
-		    	if (paths) {
+            			var tween = game.add.tween(self.sprite);
 
-			        // DEBUG
-			        // if (currentPlayer.lastPaths) {
-				       //  for(var i = 0, ilen = currentPlayer.lastPaths.length; i < ilen; i++) {
-			        //     	game.map.putTile(null, currentPlayer.lastPaths[i].x, currentPlayer.lastPaths[i].y, game.layer2);
-			        // 	}
-			        // }
-			        // currentPlayer.lastPaths = paths;
-			 
-			 		// reset current paths
-			 		self.paths = [];
+            			tween.to({
+	            			x: path.x * TILESIZE,
+	            			y: path.y * TILESIZE,
+	            		}, self.speed * path.dist );
 
-			        for(var i = 0; i < paths.length; i++) {
-			        	// DEBUG
-		            	// game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
+	            		tween.onStart.add(function() {
+	            			// sprite animation with direction goes here
+	            			if (self.paths[0])
+	            				console.log('I\'m going', self.paths[0].dir);
+		        		}, game);	        	
 
-		            	var path = getDir( paths, i, self );
-		            	
-		            	if (path) {
+			        	tween.onComplete.add(function() {
 
-	            			var tween = game.add.tween(self.sprite);
+		        			self.paths.shift();
 
-	            			tween.to({
-		            			x: path.x * TILESIZE,
-		            			y: path.y * TILESIZE,
-		            		}, self.speed * path.dist );
+		        			if (self.paths[0]) {
+		        				self.paths[0]._tween.start();
+		        			} else {
+		        				self.paths = null;
+		        			}
 
-		            		tween.onStart.add(function() {
-		            			// sprite animation with direction goes here
-		            			if (self.paths[0])
-		            				console.log('I\'m going', self.paths[0].dir);
-			        		}, game);	        	
+		        		}, game);
 
-				        	tween.onComplete.add(function() {
-
-			        			if (self.paths) self.paths.shift();
-
-			        			if (self.paths[0]) {
-			        				self.paths[0]._tween.start();
-			        			} else {
-			        				self.paths = null;
-			        			}
-
-			        		}, game);
-
-				        	// passing path as reference
-				        	tween._path = path;
-			        		path._tween = tween;
+			        	// passing path as reference
+			        	tween._path = path;
+		        		path._tween = tween;
 
 
-			        		self.paths.push(path);
+		        		self.paths.push(path);
 
-		            	}
-		        	}
+	            	}
+	        	}
 
-		        }
+	        	self.paths[0]._tween.start();
 
-		        if (callback) callback();
-	        	
-		    });
+	        }
+        	
+	    });
 
-			var startTile = [getTile(this.sprite.x), getTile(this.sprite.y)];
-			var endTile = [getTile(endPos.x), getTile(endPos.y)];
+		var startTile = [getTile(this.sprite.x), getTile(this.sprite.y)];
+		var endTile = [getTile(endPos.x), getTile(endPos.y)];
 
-		    game.astar.preparePathCalculation(startTile, endTile);
-		    game.astar.calculatePath();
-		}
+	    game.astar.preparePathCalculation(startTile, endTile);
+	    game.astar.calculatePath();
 
 	}
 
-	Player.prototype.savePos = function () {
-
-		// do not process if theres no paths, which means the clicked tile isn't accessible
-		if (!this.paths) return false;
+	/**
+	* Save an end position of player movement
+	* It will then trigger Player.moveTo after successful databse update
+	**/
+	Player.prototype.savePos = function (newPos) {
 
 		console.log('SAVING POS');
 
-		var posTile = this.paths[this.paths.length-1];
-
 		Meteor.call('updatePlayerPos', {
 			userId: this.userId,
-			x: posTile.x * TILESIZE,
-			y: posTile.y * TILESIZE
+			x: newPos.x,
+			y: newPos.y
 		})
 
 	}
 
-	// TODO : OTHER client is acting up when changing direction
+	/**
+	* Stop to a nearest position when player on the move and wants to change direction
+	* Player will move with tween to the nearest position and then execute Player.savePos for the new direction
+	* then trigger another move
+	**/
 	Player.prototype.stopAtNearest = function (newPos) {
-		// sometimes when user moves to one place, they tend to change their mind and move to others
-		// in that case, we need to break the current tween, move the player to nearest tile, and start changing direction
 
 		console.log('INIT GOING TO NEAREST');
 
@@ -333,6 +319,10 @@ CVS = {};
 		this.paths[0]._tween.stop();
 		this.paths = null;
 
+		var self = this;
+
+		// sometimes the difference between current pos and nearest tile is too small and will return the duration to zero
+		// which means we don't need tween to go to nearest, just go straight away with new paths
 		if (duration > 0) {
 			var tween = game.add.tween(this.sprite);
 
@@ -341,25 +331,17 @@ CVS = {};
 				y: nearestTile.y * TILESIZE
 			}, duration * this.speed);
 
-			var self = this;
 			tween.onComplete.add(function() {
-				console.log('DONE WITH TWEENING TO NEAREST');
-				self.findPathTo(newPos, function() {
-					self.savePos();
-				});
+
+				self.moveTo(newPos);
+
 			}, game);
 
 			tween.start();
 
 		} else {
-			// sometimes the difference between current pos and nearest tile is too small and will return the duration to zero
-			// which means we don't need tween to go to nearest, just go straight away with new paths
 
-			var self = this;
-			this.findPathTo(newPos, function() {
-				self.savePos();
-			})
-
+			this.moveTo(newPos);
 		}
 
 	}
@@ -384,7 +366,9 @@ CVS = {};
 		return Math.floor( rawPos / TILESIZE );
 	}
 
-	// function to get directions from current path and path index
+	/**
+	* Find a direction and distance from one path to another
+	**/
 	function getDir (paths, idx, player) {
 
 		// since astar returns the whole tile paths, we need to check
@@ -402,7 +386,7 @@ CVS = {};
 		// (3)  is the last path, bcs ofc the last path will be the last position to tween to, but we still need to check the distance and direction
 
 		// if those conditions aren't met, there will be no path returned, but false instead. 
-		// otherwise, the 'joint' will be returned and the 'joint' will be pushed to player object as reference
+		// otherwise, the 'joint' will be returned with direction and distance inside, and the 'joint' will be pushed to player object as reference
 
 		// (a) 	since we never returned the first path, we can't measure distance/direction between the first 'joint' and the player original position
 		//      so we used player's original position as a reference to measure first 'joint'
@@ -418,7 +402,7 @@ CVS = {};
 
 		} else 	if ( idx === 0 ) {
 
-			// if it's a first path  just return its path
+			// if it's a first path just return false
 			return false;
 
 		} else if (paths[idx].x === paths[idx-1].x && paths[idx].y !== paths[idx-1].y && paths[idx].x !== paths[idx+1].x && paths[idx].y === paths[idx+1].y) {
@@ -480,45 +464,31 @@ CVS = {};
 		// console.log('TWEENS SO FAR', tween);
 		// console.log('PATHS RIGHT NOW', game.currentPlayer.paths);
 
-		// this is to decide whether we should move the player or not
-		// we shouldn't move player if :
-		// (1)	user wants to move to non-movable areas
-		// (2)	user wants to move to same tile over and over
-
+		// this is to decide whether we should save the newest position or not
+		// we shouldn't save the position if :
+		// (1)	user wants to move to same tile over and over
+		// (2)	user wants to move to non-movable areas
+		
 		var newPos = {
 			x: pointer.worldX,
 			y: pointer.worldY
 		};
 
-		var newPosTile = {
+		var newTile = {
 			x: getTile(newPos.x),
 			y: getTile(newPos.y),
-		};
+		}
+
+		// see note (1)
+		var lastTile = config.lastClickedTile;
+		if (lastTile.x === newTile.x && lastTile.y === newTile.y) return false;
 
 		// see note (2)
-		var clickedTile = game.map.layer.data[newPosTile.y][newPosTile.x];
+		var clickedTile = game.map.layer.data[newTile.y][newTile.x];
 		if (!clickedTile.properties.walkable) return false;
 
-		// this is to check whether the player is currently moving or not,
-		// so that we can stop current movement and make a new one if it's on the move
-		if (game.currentPlayer.paths) {
-
-			// see note (1)
-			var paths = game.currentPlayer.paths;
-			var destTile = {
-				x: paths[paths.length-1].x,
-				y: paths[paths.length-1].y
-			};
-
-			if (newPosTile.x !== destTile.x && newPosTile.y !== destTile.y) {
-				game.currentPlayer.stopAtNearest(newPos);
-			}
-
-		} else {
-			game.currentPlayer.findPathTo(newPos, function() {
-				game.currentPlayer.savePos();
-			});
-		}
+		game.currentPlayer.savePos(newPos);
+		config.lastClickedTile = newTile;
 
 	}
 
