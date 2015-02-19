@@ -65,7 +65,6 @@ CVS = {};
 	function create() {
 
 		// world setup
-	    //game.add.tileSprite(0, 0, WORLD_WIDTH, WORLD_HEIGHT, 'spritesheet');
 	    game.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
 	    game.map = game.add.tilemap('weirdmap');
@@ -78,9 +77,6 @@ CVS = {};
 	    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
 	    game.astar.walkables = [10, 30];
 	    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
-
-	    // disable physics since we're using tweens
-	    //game.physics.startSystem(Phaser.Physics.P2JS);
 
 	    // deadzone : the middle box of which the camera shouldn't scrolling
 	    // game.camera.deadzone = new Phaser.Rectangle(100, 100, DEADZONE_WIDTH, DEADZONE_HEIGHT);
@@ -125,35 +121,9 @@ CVS = {};
 	    }
 	}
 
-	function update() {
+	function update() {}
 
-	    //  This allows us to move the game camera using the keyboard
-
-	    if (cursors.left.isDown)
-	    {
-	        game.camera.x -= 10;
-	    }
-	    else if (cursors.right.isDown)
-	    {
-	        game.camera.x += 10;
-	    }
-
-	    if (cursors.up.isDown)
-	    {
-	        game.camera.y -= 10;
-	    }
-	    else if (cursors.down.isDown)
-	    {
-	        game.camera.y += 10;
-	    }
-
-	}
-
-	function render() {
-
-	    game.debug.inputInfo(32, 32);
-
-	}
+	function render() {}
 
 	// ------------------------------
 	// all game related funcs END
@@ -374,11 +344,11 @@ CVS = {};
 		// since astar returns the whole tile paths, we need to check
 		// whether the previous path and/or the next path is going to different directions from the current path.
 		// we can also call this kind of path as 'joint'.
-		// this function should return a 'joint' with contains information to tell the player 
-		// position to go (x and y), direction to go (up down left right) and the distance to go based on the previous 'joint'.
+		// this function should return a joint with contains information to tell the player position to go (x and y),
+		// direction to go (up down left right) and the distance to go based on the previous joint.
 		// series of paths like this will result in a chain of position that will be useful for tweening
 
-		// the condition so that a 'joint' can be returned is that the path :
+		// the condition so that a joint can be returned is that the path :
 		// (1)	has the same x different y with the previous path, but has the same y different x with the next path 
 		//		(it's moving horizontally, either right or left)
 		// (2)  has the same y different x with the previous path, but has the same x different y with the next path 
@@ -386,10 +356,10 @@ CVS = {};
 		// (3)  is the last path, bcs ofc the last path will be the last position to tween to, but we still need to check the distance and direction
 
 		// if those conditions aren't met, there will be no path returned, but false instead. 
-		// otherwise, the 'joint' will be returned with direction and distance inside, and the 'joint' will be pushed to player object as reference
+		// otherwise, the joint will be returned with direction and distance inside, and the joint will be pushed to player object as reference
 
-		// (a) 	since we never returned the first path, we can't measure distance/direction between the first 'joint' and the player original position
-		//      so we used player's original position as a reference to measure first 'joint'
+		// (a) 	since we never returned the first path, we can't measure distance/direction between the first joint and the player original position
+		//      so we used player's original position as a reference to measure first joint
 
 		var dir,
 			dist,
@@ -456,13 +426,6 @@ CVS = {};
 	// ------------------------------
 
 	function onClickGameWorld (pointer, mouse) {
-
-		// DEBUG
-		// clicks++;
-		// console.log('CLICK NUMBER', clicks);
-		// var tween = game.tweens._tweens[0];
-		// console.log('TWEENS SO FAR', tween);
-		// console.log('PATHS RIGHT NOW', game.currentPlayer.paths);
 
 		// this is to decide whether we should save the newest position or not
 		// we shouldn't save the position if :
