@@ -68,8 +68,8 @@ CVS = {};
 
 			    game.input.addMoveCallback(onMoveMouse, this);
 
-			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.A);
-			    keys.attack.onUp.add(onPressAttackKey);
+			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.SHIFT);
+			    keys.attack.onDown.add(onPressAttackKey);
 
 			   	cursor_tile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
 
@@ -573,6 +573,8 @@ CVS = {};
 	}
 
 	function onPressAttackKey() {
+		if (!current_player) return;
+
 		// only allow attacking if the state is either active or active-attack
 		if (current_player.state.indexOf('active') === -1) return;
 
@@ -595,6 +597,8 @@ CVS = {};
 
 		if (isCurrentUser) {
 			current_player = player;
+
+			config.lastClickedTile = player.data.pos;
 
 			game.camera.follow(current_player.sprite);
 

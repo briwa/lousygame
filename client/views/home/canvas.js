@@ -22,7 +22,6 @@ Template.canvas.rendered = function() {
 		// TODO : so this added function is called for all events, the past event and the new events
 		// we should exclude the past events
 		added: function(event_id, event) {
-			console.log(event.type);
 			CVS.EVENT.onNewPlayerEvent(event);
 		}
 	});
