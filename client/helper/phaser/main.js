@@ -7,8 +7,7 @@ CVS = {};
 		CVS_HEIGHT = 480,
 		WORLD_WIDTH = 960,
 		WORLD_HEIGHT = 960,
-		TILESIZE = 32,
-		PLAYER_SPEED = 200; // tile per ms
+		TILESIZE = 32;
 
 	// the GAME object..... this is where it all started
 	var game;
@@ -101,11 +100,10 @@ CVS = {};
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(39,47), 30, true);
 
-		var atkspeed = this.data.atkspeed*3;
-		this.sprite.animations.add('attack_bow_up', getRange(104, 115), atkspeed, true);
-		this.sprite.animations.add('attack_bow_left', getRange(117, 129), atkspeed, true);
-		this.sprite.animations.add('attack_bow_down', getRange(130, 142), atkspeed, true);
-		this.sprite.animations.add('attack_bow_right', getRange(142, 155), atkspeed, true);
+		this.sprite.animations.add('attack_bow_up', getRange(104, 115), 30, true);
+		this.sprite.animations.add('attack_bow_left', getRange(117, 129), 30, true);
+		this.sprite.animations.add('attack_bow_down', getRange(130, 142), 30, true);
+		this.sprite.animations.add('attack_bow_right', getRange(143, 155), 30, true);
 
 		this.sprite.animations.add('die', getRange(156, 161), 30, true);
 
@@ -303,7 +301,7 @@ CVS = {};
 			state : 'attack'
 		});
 
-		this.sprite.animations.play('attack_bow_'+dir, false, false);
+		this.sprite.animations.play('attack_bow_'+dir, this.data.atkspeed*3, false);
 
 		var self = this;
 		setTimeout(function() {
@@ -315,7 +313,7 @@ CVS = {};
 				speed : speed,
 				dir : dir
 			});
-		}, speed*80);
+		}, (1/speed)*2000);
 	}
 
 	Player.prototype.getDamage = function (damage, attacking_user_id) {
@@ -395,7 +393,7 @@ CVS = {};
 		tween.to({
 			x: end_x,
 			y: end_y
-		}, options.speed * distance);
+		}, (30/options.speed) * distance);
 
 		var self = this;
 		tween.onComplete.add(function() {
