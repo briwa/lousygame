@@ -14,8 +14,8 @@ Accounts.onCreateUser(function (options, user) {
 		atk: 10,
 		mspeed: 200,
 		pos: {
-			x: 100,
-			y: 100
+			x: 10,
+			y: 10
 		},
 		gold: 0,
 		exp: 0

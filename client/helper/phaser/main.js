@@ -20,12 +20,13 @@ CVS = {};
 	// configs and debugs
 	var config = {
 		players: [],
-		currentPlayer: null,
+		current_player: null,
 		lastClickedTile: {}
 	};
 
 	// input related
-	var cursorTile;
+	var cursor_tile;
+	keys = {};
 
 	// --------------------------------------------------------------------------------------------------------------
 	// all game related funcs START
@@ -40,7 +41,7 @@ CVS = {};
 
 				// image for sprites
 			    game.load.spritesheet('player','sprites/archer.png', 64, 64, 169);
-			    game.load.image('cursorTile', 'sprites/default.png');
+			    game.load.image('cursor_tile', 'sprites/default.png');
 
 			    // for tiled maps
 			    game.load.tilemap('weirdmap', 'sprites/weirdmap.json', null, Phaser.Tilemap.TILED_JSON);
@@ -69,7 +70,10 @@ CVS = {};
 
 			    game.input.addMoveCallback(onMoveMouse, this);
 
-			   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
+			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.A);
+			    keys.attack.onUp.add(onPressAttackKey);
+
+			   	cursor_tile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
@@ -94,7 +98,7 @@ CVS = {};
 		this.game = game;
 		this.data = data;
 
-		this.sprite = game.add.sprite(getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player', 26);
+		this.sprite = game.add.sprite(getTilePos(this.data.pos.x*TILESIZE), getTilePos(this.data.pos.y*TILESIZE), 'player', 26);
 		this.user_id = user._id;
 
 		this.sprite.anchor.setTo(0.25, 0.5);
@@ -104,6 +108,8 @@ CVS = {};
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
 
+		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
+
 		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
 		this.name.x = -(this.name.width/2) + this.sprite.width/2 - (TILESIZE/2);
 		this.sprite.addChild(this.name);
@@ -111,8 +117,16 @@ CVS = {};
 		this.healthbar = game.add.graphics(-TILESIZE/2, -TILESIZE);
 		this.healthbar.beginFill(0xFF0000, 1);
 		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4);
-
 		this.sprite.addChild(this.healthbar);
+
+		this.attackrange = TILESIZE*6;
+		this.attackarea = game.add.graphics(TILESIZE/2, TILESIZE/2);
+		this.attackarea.lineStyle(2, 0x0000FF, 1);
+		this.attackarea.drawCircle(0, 0, this.attackrange*2);
+		this.sprite.addChild(this.attackarea);
+		this.attackarea.alpha = 0;
+
+		this.state = 'active';
 
 		return this;
 	}
@@ -153,7 +167,6 @@ CVS = {};
 		        		}, game);	        	
 
 			        	tween.onComplete.add(function() {
-
 		        			self.paths.shift();
 
 		        			if (self.paths[0]) {
@@ -163,7 +176,6 @@ CVS = {};
 		        			}
 
 		        			self.sprite.animations.stop(true);
-
 		        		}, game);
 
 			        	// passing path as reference
@@ -183,7 +195,7 @@ CVS = {};
 	    });
 
 		var startTile = [getTile(this.sprite.x), getTile(this.sprite.y)];
-		var endTile = [getTile(endPos.x), getTile(endPos.y)];
+		var endTile = [endPos.x, endPos.y];
 
 	    game.astar.preparePathCalculation(startTile, endTile);
 	    game.astar.calculatePath();
@@ -197,15 +209,13 @@ CVS = {};
 	**/
 	Player.prototype.stopAtNearest = function (newPos) {
 
-		console.log('INIT GOING TO NEAREST');
-
+		// only do it if the paths exist
 		if (!this.paths) return false;
-
-		console.log('THERE IS PATH, START GOING TO NEAREST');
 
 		var nearestTile = {};
 		var duration;
 
+		// find the coordinate of the closest tile from current location and also duration to get there
 		switch (this.paths[0].dir) {
 			case 'up':
 				nearestTile.x = this.paths[0].x;
@@ -232,7 +242,6 @@ CVS = {};
 		this.paths[0]._tween.stop();
 		this.paths = null;
 
-		var self = this;
 
 		// sometimes the difference between current pos and nearest tile is too small and will return the duration to zero
 		// which means we don't need tween to go to nearest, just go straight away with new paths
@@ -244,6 +253,7 @@ CVS = {};
 				y: nearestTile.y * TILESIZE
 			}, duration * this.data.mspeed);
 
+			var self = this;
 			tween.onComplete.add(function() {
 
 				self.moveTo(newPos);
@@ -379,38 +389,52 @@ CVS = {};
 
 	function onClickGameWorld (pointer, mouse) {
 
-		// this is to decide whether we should save the newest position or not
-		// we shouldn't save the position if :
-		// (1)	user wants to move to same tile over and over
-		// (2)	user wants to move to non-movable areas
-		
 		var newPos = {
-			x: pointer.worldX,
-			y: pointer.worldY
+			x: getTile(pointer.worldX),
+			y: getTile(pointer.worldY)
 		};
 
 		var newTile = {
 			x: getTile(newPos.x),
-			y: getTile(newPos.y),
+			y: getTile(newPos.y)
+		};
+
+		// allow moving only when the state is active (not attacking, etc)
+		switch (config.current_player.state) {
+			case 'active':
+				// we shouldn't save the position if user wants to move to same tile over and over
+				var lastTile = config.lastClickedTile;
+				if (lastTile.x === newPos.x && lastTile.y === newPos.y) return false;
+
+				// we shouldn't save the position if user wants to move to non-movable areas
+				var clickedTile = game.map.layer.data[newPos.y][newPos.x];
+				if (!clickedTile.properties.walkable) return false;
+
+				onCurrentPlayerMove(newPos);
+
+				config.lastClickedTile = newPos;
+			break;
+			case 'pre-attack':
+				var point = new Phaser.Point(newTile.x*TILESIZE, newTile.y*TILESIZE);
+
+				if (config.current_player.attackrange - point.distance(config.current_player.sprite) > -TILESIZE/2) {
+					
+				}
+			break;
 		}
-
-		// see note (1)
-		var lastTile = config.lastClickedTile;
-		if (lastTile.x === newTile.x && lastTile.y === newTile.y) return false;
-
-		// see note (2)
-		var clickedTile = game.map.layer.data[newTile.y][newTile.x];
-		if (!clickedTile.properties.walkable) return false;
-
-		onCurrentPlayerMove(newPos);
-
-		config.lastClickedTile = newTile;
 
 	}
 
 	function onMoveMouse (pointer, x, y) {
-		cursorTile.x = getTilePos( pointer.worldX );
-		cursorTile.y = getTilePos( pointer.worldY );
+		cursor_tile.x = getTilePos( pointer.worldX );
+		cursor_tile.y = getTilePos( pointer.worldY );
+	}
+
+	function onPressAttackKey(e) {
+		var new_atk_range_alpha = Math.abs(config.current_player.attackarea.alpha - 1);
+		config.current_player.attackarea.alpha = new_atk_range_alpha;
+
+		config.current_player.state = new_atk_range_alpha ? 'pre-attack' : 'active';
 	}
 
 	function onPlayerLoggedIn(user, isCurrentUser) {
@@ -426,8 +450,8 @@ CVS = {};
 		config.players.push(player);
 
 		if (isCurrentUser) {
-			config.currentPlayer = player;
-			game.camera.follow(config.currentPlayer.sprite);
+			config.current_player = player;
+			game.camera.follow(config.current_player.sprite);
 		}
 
 	}
@@ -439,8 +463,8 @@ CVS = {};
 		}, true);
 
 		if (isCurrentUser) {
-			game.camera.unfollow(config.currentPlayer.sprite);
-			config.currentPlayer = null;
+			game.camera.unfollow(config.current_player.sprite);
+			config.current_player = null;
 		}
 
 		// remove player from canvas
@@ -500,7 +524,7 @@ CVS = {};
 	}
 
 	function getCurrentPlayer() {
-		return config.currentPlayer;
+		return config.current_player;
 	}
 
 	function getPlayerByUserId(user_id) {
