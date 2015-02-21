@@ -73,7 +73,6 @@ CVS = {};
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
-			    isGameReady = true;
 			}, 
 		});
 
