@@ -17,7 +17,7 @@ Accounts.onCreateUser(function (options, user) {
 		hp: 100,
 		atk: 10,
 		atkspeed: 5,
-		mspeed: 250,
+		mspeed: 10,
 		pos: {
 			x: 10,
 			y: 10

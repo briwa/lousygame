@@ -158,7 +158,7 @@ CVS = {};
             			tween.to({
 	            			x: path.x * TILESIZE,
 	            			y: path.y * TILESIZE,
-	            		}, self.data.mspeed * path.dist );
+	            		}, 2500/self.data.mspeed * path.dist );
 
 	            		tween.onStart.add(function() {
 	            			// sprite animation with direction goes here
@@ -264,7 +264,7 @@ CVS = {};
 			tween.to({
 				x: nearestTile.x * TILESIZE,
 				y: nearestTile.y * TILESIZE
-			}, duration * this.data.mspeed);
+			}, 2500/this.data.mspeed * duration);
 
 			var self = this;
 			tween.onComplete.add(function() {
