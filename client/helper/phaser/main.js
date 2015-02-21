@@ -39,28 +39,27 @@ CVS = {};
 				game.stage.disableVisibilityChange = true;
 
 				// image for sprites
-			    game.load.image('background','sprites/debug-grid-1920x1920.png');
-			    game.load.image('player2','sprites/phaser-dude.png');
 			    game.load.spritesheet('player','sprites/archer.png', 64, 64, 169);
 			    game.load.image('cursorTile', 'sprites/default.png');
 
 			    // for tiled maps
 			    game.load.tilemap('weirdmap', 'sprites/weirdmap.json', null, Phaser.Tilemap.TILED_JSON);
-			    game.load.image('tmw_desert_spacing', 'sprites/tmw_desert_spacing.png');
+			    //game.load.image('simplesheet', 'sprites/simplesheet.png');
+			    game.load.spritesheet('simplesheet', 'sprites/simplesheet.png', 32, 32);
 			}, 
 			create: function() {
 				// world setup
 			    game.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
 			    game.map = game.add.tilemap('weirdmap');
-			    game.map.addTilesetImage('tmw_desert_spacing', 'tmw_desert_spacing');
+			    game.map.addTilesetImage('simplesheet', 'simplesheet');
 
-			    game.layer = game.map.createLayer('Layer1');
-			    game.layer2 = game.map.createLayer('Layer2');
+			    game.layer = game.map.createLayer('layer1');
+			    game.layer2 = game.map.createLayer('layer2');
 
 			    // add phaser astar plugin!
 			    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
-			    game.astar.walkables = [10, 30];
+			    game.astar.walkables = [1];
 			    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
 
 			    // deadzone : the middle box of which the camera shouldn't scrolling
@@ -70,7 +69,8 @@ CVS = {};
 
 			    game.input.addMoveCallback(onMoveMouse, this);
 
-			   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'cursorTile');
+			   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
+
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
