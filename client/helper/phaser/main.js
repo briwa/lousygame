@@ -101,9 +101,9 @@ CVS = {};
 		this.sprite.anchor.setTo(0.25, 0.5);
 		// add animation for walk and attack
 		this.sprite.animations.add('walk_up', getRange(1,8) , 30, true);
-		this.sprite.animations.add('walk_left', getRange(14,21), 30, true);
+		this.sprite.animations.add('walk_left', getRange(13,21), 30, true);
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
-		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
+		this.sprite.animations.add('walk_right', getRange(39,47), 30, true);
 
 		var atkspeed = this.data.atkspeed*3;
 		this.sprite.animations.add('attack_bow_up', getRange(104, 115), atkspeed, true);
@@ -387,8 +387,6 @@ CVS = {};
 
 		var start_x = options.player.sprite.x + (dir === 'left' || dir === 'right' ? TILESIZE : TILESIZE/2);
 		var start_y = options.player.sprite.y;
-
-		console.log(start_x);
 
 		// calculate the x and y middle of the destination tile
 		var end_x = options.pos.x*TILESIZE + (TILESIZE/2);
