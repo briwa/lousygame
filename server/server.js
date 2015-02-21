@@ -1,3 +1,7 @@
+Meteor.startup(function() {
+	PlayerEvents.remove({});
+});
+
 Accounts.onCreateUser(function (options, user) {
 
 	var randomizer = function (value) {
@@ -37,7 +41,18 @@ Meteor.methods({
 					$set : {
 						'pos' : options.attr
 					}
-				})
+				});
+			break;
+			case 'get_damage' : 
+				var hurt_player = PlayerData.findOne({user_id: options.user_id});
+
+				PlayerData.update({
+					user_id : options.user_id,
+				}, {
+					$set : {
+						'hp' : hurt_player.hp -= options.attr.damage
+					}
+				});
 			break;
 		}
 	}

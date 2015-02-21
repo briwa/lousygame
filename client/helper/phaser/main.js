@@ -92,7 +92,6 @@ CVS = {};
 
 	// the Player object
 	var Player = function (user, data) {
-
 		this.game = game;
 		this.data = data;
 
@@ -142,6 +141,8 @@ CVS = {};
 	**/
 	Player.prototype.moveTo = function (endPos) {
 
+		this.state = 'moving';
+
 		var self = this;
 
 		game.astar.setCallbackFunction(function(paths) {
@@ -181,6 +182,8 @@ CVS = {};
 		        				self.paths = null;
 
 		        				self.sprite.animations.stop(true);
+
+		        				self.state = 'active';
 		        			
 			        			if (self.user_id === current_player.user_id) {
 			        				current_player.dir = dir;
@@ -224,6 +227,8 @@ CVS = {};
 
 		// only do it if the paths exist
 		if (!this.paths) return false;
+
+		this.state = 'moving';
 
 		var nearestTile = {};
 		var duration;
@@ -282,8 +287,9 @@ CVS = {};
 
 	}
 
-	Player.prototype.shootArrow = function (point, distance, angle) {
-		var dir;
+	Player.prototype.shootArrow = function (pos) {
+		var point = new Phaser.Point(pos.x*TILESIZE, pos.y*TILESIZE);
+		var angle = point.angle(this.sprite)*180/Math.PI;
 
 		if (Math.abs(angle) > 121) {
 			dir = 'right';
@@ -299,18 +305,31 @@ CVS = {};
 			state : 'attack'
 		});
 
-		current_player.sprite.animations.play('attack_bow_'+dir, false, false);
+		this.sprite.animations.play('attack_bow_'+dir, false, false);
 
 		var self = this;
 		setTimeout(function() {
 			var arrow = new Arrow({
 				player : self,
+				pos: pos,
 				point: point,
-				distance : distance,
+				angle: angle-90,
 				speed: 3,
-				angle: angle-90
 			});
 		}, 200);
+	}
+
+	Player.prototype.getDamage = function (damage) {
+		this.data.hp = damage > this.data.hp ? 0 : this.data.hp - damage;
+
+		this.setHealthBar();
+	}
+
+	Player.prototype.setHealthBar = function() {
+		this.healthbar.clear();
+		this.healthbar.beginFill(0xFF0000, 1);
+		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4); // TODO: 100 should be from max_hp
+		this.sprite.addChild(this.healthbar);
 	}
 
 	// ------------------------------
@@ -323,8 +342,10 @@ CVS = {};
 
 	// the Arrow object
 	var Arrow = function (options) {
+		var distance = options.point.distance(options.player.sprite);
 
-		this.game = game;
+		var middle_x = options.pos.x*TILESIZE + (TILESIZE/2);
+		var middle_y = options.pos.y*TILESIZE + (TILESIZE/2);
 
 		this.sprite = game.add.sprite(options.player.sprite.x+TILESIZE, options.player.sprite.y, 'simplesheet', 5);
 		this.sprite.anchor.setTo(0.5, 0.5);
@@ -332,14 +353,10 @@ CVS = {};
 		this.sprite.angle = options.angle;
 
 		var tween = game.add.tween(this.sprite);
-
-		var middle_x = getTilePos(options.point.x) + (TILESIZE/2);
-		var middle_y = getTilePos(options.point.y) + (TILESIZE/2);
-
 		tween.to({
 			x: middle_x,
 			y: middle_y
-		}, options.speed * options.distance);
+		}, options.speed * distance);
 
 		var self = this;
 		tween.onComplete.add(function() {
@@ -347,6 +364,15 @@ CVS = {};
 			setPlayerAttributeByUserId(options.player.user_id, {
 				state : options.player.attackarea.alpha ? 'pre-attack' : 'active'
 			});
+
+			// check if the arrow hit someone
+			var hurt_player = getPlayerByPos(options.pos);
+
+			if (hurt_player) {
+				// send events to player events
+				var attacking_player = options.player;
+				onPlayerGetDamage(hurt_player.user_id, attacking_player);
+			}
 		});
 
 		tween.start();
@@ -471,7 +497,7 @@ CVS = {};
 	// event funcs START
 	// ------------------------------
 
-	function onClickGameWorld (pointer, mouse) {
+	function onClickGameWorld (pointer) {
 
 		var newPos = {
 			x: getTile(pointer.worldX),
@@ -495,12 +521,14 @@ CVS = {};
 			break;
 			case 'pre-attack':
 				var point = new Phaser.Point(newPos.x*TILESIZE, newPos.y*TILESIZE);
-				var distance = point.distance(current_player.sprite);
-				var angle = point.angle(current_player.sprite)*180/Math.PI;
 
-				if (current_player.attackrange - distance > -TILESIZE/2) {
-					// save it to db... for now we trigger it in client first
-					current_player.shootArrow(point, distance, angle);
+				// only allow the player to shoot if target is within range
+				if (current_player.attackrange - point.distance(current_player.sprite) > -TILESIZE/2) {
+					onCurrentPlayerAttack(newPos);
+				} else {
+					// trigger moving instead
+					onPressAttackKey();
+					onClickGameWorld(pointer);
 				}
 			break;
 		}
@@ -512,7 +540,9 @@ CVS = {};
 		cursor_tile.y = getTilePos( pointer.worldY );
 	}
 
-	function onPressAttackKey(e) {
+	function onPressAttackKey() {
+		if (current_player.state === 'moving') return;
+
 		var new_atk_range_alpha = Math.abs(current_player.attackarea.alpha - 1);
 		current_player.attackarea.alpha = new_atk_range_alpha;
 
@@ -587,6 +617,12 @@ CVS = {};
 			}
 
 			player.data.pos = new_pos;
+		} else if (event.type === 'attack') {
+			if (event.attr.atk_type === 'bow') {
+				player.shootArrow(event.attr.pos);
+			}
+		} else if (event.type === 'get_damage') {
+			player.getDamage(event.attr.damage);
 		}
 	}
 
@@ -595,6 +631,28 @@ CVS = {};
 			user_id : Meteor.userId(),
 			type: 'move',
 			attr: pos
+		})
+	}
+
+	function onCurrentPlayerAttack(pos) {
+		Meteor.call('savePlayerEvent', {
+			user_id: Meteor.userId(),
+			type: 'attack',
+			attr: {
+				atk_type: 'bow', // for now
+				pos: pos
+			}
+		})
+	}
+
+	function onPlayerGetDamage(target_user_id, attacking_player) {
+		Meteor.call('savePlayerEvent', {
+			user_id : target_user_id,
+			type: 'get_damage',
+			attr: {
+				attacking_user_id : attacking_player.user_id,
+				damage : attacking_player.data.atk,
+			}
 		})
 	}
 
@@ -616,13 +674,17 @@ CVS = {};
 	}
 
 	function getPlayerByUserId(user_id) {
-
 		if (config.players.length === 0) return false;
 
 		return _.where(config.players, {
 			'user_id' : user_id
 		}, true);
+	}
 
+	function getPlayerByPos(pos) {
+		return _.find(config.players, function(player) {
+			return player.data.pos.x === pos.x && player.data.pos.y === pos.y;
+		});
 	}
 
 	function setPlayerAttributeByUserId(user_id, attr) {
@@ -633,6 +695,8 @@ CVS = {};
 		for (var key in attr) {
 			if (attr.hasOwnProperty(key)) player[key] = attr[key];
 		}
+
+		return player;
 	}
 
 
