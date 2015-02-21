@@ -17,10 +17,11 @@ CVS = {};
 	// the GAME object..... this is where it all started
 	var game;
 
+	var current_player;
+
 	// configs and debugs
 	var config = {
 		players: [],
-		current_player: null,
 		lastClickedTile: {}
 	};
 
@@ -62,9 +63,6 @@ CVS = {};
 			    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
 			    game.astar.walkables = [1];
 			    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
-
-			    // deadzone : the middle box of which the camera shouldn't scrolling
-			    // game.camera.deadzone = new Phaser.Rectangle(100, 100, DEADZONE_WIDTH, DEADZONE_HEIGHT);
 
 			    game.input.onDown.add(onClickGameWorld, this);
 
@@ -108,6 +106,11 @@ CVS = {};
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
 
+		this.sprite.animations.add('attack_bow_up', getRange(104, 115), 30, true);
+		this.sprite.animations.add('attack_bow_left', getRange(117, 129), 30, true);
+		this.sprite.animations.add('attack_bow_down', getRange(130, 142), 30, true);
+		this.sprite.animations.add('attack_bow_right', getRange(142, 155), 30, true);
+
 		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
 
 		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
@@ -127,6 +130,7 @@ CVS = {};
 		this.attackarea.alpha = 0;
 
 		this.state = 'active';
+		this.dir = 'down';
 
 		return this;
 	}
@@ -167,15 +171,24 @@ CVS = {};
 		        		}, game);	        	
 
 			        	tween.onComplete.add(function() {
+			        		var dir = self.paths[0].dir;
+
 		        			self.paths.shift();
 
 		        			if (self.paths[0]) {
 		        				self.paths[0]._tween.start();
 		        			} else {
 		        				self.paths = null;
+
+		        				self.sprite.animations.stop(true);
+		        			
+			        			if (self.user_id === current_player.user_id) {
+			        				current_player.dir = dir;
+			        			} else {
+			        				self.dir = dir;
+			        			}
 		        			}
 
-		        			self.sprite.animations.stop(true);
 		        		}, game);
 
 			        	// passing path as reference
@@ -269,9 +282,80 @@ CVS = {};
 
 	}
 
+	Player.prototype.shootArrow = function (point, distance, angle) {
+		var dir;
+
+		if (Math.abs(angle) > 121) {
+			dir = 'right';
+		} else if (angle > 30 && angle < 120) {
+			dir = 'up';
+		} else if (angle < 30 && angle > -32) {
+			dir = 'left';
+		} else {
+			dir = 'down';
+		}
+
+		setPlayerAttributeByUserId(this.user_id, {
+			state : 'attack'
+		});
+
+		current_player.sprite.animations.play('attack_bow_'+dir, false, false);
+
+		var self = this;
+		setTimeout(function() {
+			var arrow = new Arrow({
+				player : self,
+				point: point,
+				distance : distance,
+				speed: 3,
+				angle: angle-90
+			});
+		}, 200);
+	}
+
 	// ------------------------------
 	// players funcs END
 	// --------------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------------
+	// Arrow funcs START
+	// ------------------------------
+
+	// the Arrow object
+	var Arrow = function (options) {
+
+		this.game = game;
+
+		this.sprite = game.add.sprite(options.player.sprite.x+TILESIZE, options.player.sprite.y, 'simplesheet', 5);
+		this.sprite.anchor.setTo(0.5, 0.5);
+
+		this.sprite.angle = options.angle;
+
+		var tween = game.add.tween(this.sprite);
+
+		var middle_x = getTilePos(options.point.x) + (TILESIZE/2);
+		var middle_y = getTilePos(options.point.y) + (TILESIZE/2);
+
+		tween.to({
+			x: middle_x,
+			y: middle_y
+		}, options.speed * options.distance);
+
+		var self = this;
+		tween.onComplete.add(function() {
+			self.sprite.kill();
+			setPlayerAttributeByUserId(options.player.user_id, {
+				state : options.player.attackarea.alpha ? 'pre-attack' : 'active'
+			});
+		});
+
+		tween.start();
+	}
+
+	// ------------------------------
+	// Arrow funcs END
+	// --------------------------------------------------------------------------------------------------------------
+
 
 	// --------------------------------------------------------------------------------------------------------------
 	// private funcs START
@@ -394,13 +478,8 @@ CVS = {};
 			y: getTile(pointer.worldY)
 		};
 
-		var newTile = {
-			x: getTile(newPos.x),
-			y: getTile(newPos.y)
-		};
-
 		// allow moving only when the state is active (not attacking, etc)
-		switch (config.current_player.state) {
+		switch (current_player.state) {
 			case 'active':
 				// we shouldn't save the position if user wants to move to same tile over and over
 				var lastTile = config.lastClickedTile;
@@ -415,10 +494,13 @@ CVS = {};
 				config.lastClickedTile = newPos;
 			break;
 			case 'pre-attack':
-				var point = new Phaser.Point(newTile.x*TILESIZE, newTile.y*TILESIZE);
+				var point = new Phaser.Point(newPos.x*TILESIZE, newPos.y*TILESIZE);
+				var distance = point.distance(current_player.sprite);
+				var angle = point.angle(current_player.sprite)*180/Math.PI;
 
-				if (config.current_player.attackrange - point.distance(config.current_player.sprite) > -TILESIZE/2) {
-					
+				if (current_player.attackrange - distance > -TILESIZE/2) {
+					// save it to db... for now we trigger it in client first
+					current_player.shootArrow(point, distance, angle);
 				}
 			break;
 		}
@@ -431,10 +513,10 @@ CVS = {};
 	}
 
 	function onPressAttackKey(e) {
-		var new_atk_range_alpha = Math.abs(config.current_player.attackarea.alpha - 1);
-		config.current_player.attackarea.alpha = new_atk_range_alpha;
+		var new_atk_range_alpha = Math.abs(current_player.attackarea.alpha - 1);
+		current_player.attackarea.alpha = new_atk_range_alpha;
 
-		config.current_player.state = new_atk_range_alpha ? 'pre-attack' : 'active';
+		current_player.state = new_atk_range_alpha ? 'pre-attack' : 'active';
 	}
 
 	function onPlayerLoggedIn(user, isCurrentUser) {
@@ -450,8 +532,12 @@ CVS = {};
 		config.players.push(player);
 
 		if (isCurrentUser) {
-			config.current_player = player;
-			game.camera.follow(config.current_player.sprite);
+			current_player = player;
+
+			game.camera.follow(current_player.sprite);
+
+			// deadzone : the middle box of which the camera shouldn't scrolling
+			game.camera.deadzone = new Phaser.Rectangle(200, 150, 240, 180);
 		}
 
 	}
@@ -463,8 +549,8 @@ CVS = {};
 		}, true);
 
 		if (isCurrentUser) {
-			game.camera.unfollow(config.current_player.sprite);
-			config.current_player = null;
+			game.camera.unfollow(current_player.sprite);
+			current_player = null;
 		}
 
 		// remove player from canvas
@@ -499,6 +585,8 @@ CVS = {};
 				// this means move another player
 				player.moveTo(new_pos);
 			}
+
+			player.data.pos = new_pos;
 		}
 	}
 
@@ -524,7 +612,7 @@ CVS = {};
 	}
 
 	function getCurrentPlayer() {
-		return config.current_player;
+		return current_player;
 	}
 
 	function getPlayerByUserId(user_id) {
@@ -535,6 +623,16 @@ CVS = {};
 			'user_id' : user_id
 		}, true);
 
+	}
+
+	function setPlayerAttributeByUserId(user_id, attr) {
+		var player = _.where(config.players, {
+			user_id : user_id
+		}, true);
+
+		for (var key in attr) {
+			if (attr.hasOwnProperty(key)) player[key] = attr[key];
+		}
 	}
 
 

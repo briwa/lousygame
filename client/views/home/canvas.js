@@ -6,8 +6,6 @@ Template.canvas.rendered = function() {
 	CVS.MAIN.init(function() {
 		users.observe({
 			added: function(user) {
-				console.log('this user is already logged in', user);
-
 				// TODO : timeout needed bcs it couldn't get the Meteor.userId right
 				// still not sure why
 				Meteor.setTimeout(function() {
@@ -15,8 +13,6 @@ Template.canvas.rendered = function() {
 				}, 0);
 			},
 			removed: function(user) {
-				console.log('this user has just logged out', user);
-
 				CVS.EVENT.onPlayerLoggedOut(user, user._id === Meteor.userId());
 			},
 		});
