@@ -40,7 +40,8 @@ CVS = {};
 
 				// image for sprites
 			    game.load.image('background','sprites/debug-grid-1920x1920.png');
-			    game.load.image('player','sprites/phaser-dude.png');
+			    game.load.image('player2','sprites/phaser-dude.png');
+			    game.load.spritesheet('player','sprites/archer.png', 64, 64, 169);
 			    game.load.image('cursorTile', 'sprites/default.png');
 
 			    // for tiled maps
@@ -93,8 +94,15 @@ CVS = {};
 
 		this.game = game;
 		this.data = data;
-		this.sprite = game.add.sprite( getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player' );
+		this.sprite = game.add.sprite( getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player', 26 );
 		this.user_id = user._id;
+
+		this.sprite.anchor.setTo(0.25, 0.5);
+		// add animation for walk and attack
+		this.sprite.animations.add('walk_up', getRange(1,8) , 30, true);
+		this.sprite.animations.add('walk_left', getRange(14,21), 30, true);
+		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
+		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
 
 		return this;
 	}
@@ -130,8 +138,8 @@ CVS = {};
 
 	            		tween.onStart.add(function() {
 	            			// sprite animation with direction goes here
-	            			//if (self.paths[0])
-	            				//console.log('I\'m going', self.paths[0].dir);
+	            			if (self.paths[0])
+	            				self.sprite.animations.play('walk_'+self.paths[0].dir);
 		        		}, game);	        	
 
 			        	tween.onComplete.add(function() {
@@ -143,6 +151,8 @@ CVS = {};
 		        			} else {
 		        				self.paths = null;
 		        			}
+
+		        			self.sprite.animations.stop(true);
 
 		        		}, game);
 
@@ -338,6 +348,15 @@ CVS = {};
 
 		}
 
+	}
+
+	function getRange(start, end) {
+		var arr = [];
+		for (var i = start; i <= end; i++) {
+			arr.push(i);
+		}
+
+		return arr;
 	}
 
 	// ------------------------------
