@@ -13,7 +13,7 @@ Accounts.onCreateUser(function (options, user) {
 
 	PlayerData.insert({
 		user_id: user._id,
-		name: 'name'+randomizer(100),
+		name: user.username,
 		hp: 100,
 		atk: 10,
 		atkspeed: 5,

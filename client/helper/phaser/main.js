@@ -113,8 +113,6 @@ CVS = {};
 
 		this.sprite.animations.add('die', getRange(156, 161), 30, true);
 
-		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
-
 		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
 		this.name.x = -(this.name.width/2) + this.sprite.width/2 - (TILESIZE/2);
 		this.sprite.addChild(this.name);
