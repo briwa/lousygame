@@ -1,7 +1,3 @@
-// TODO
-// - convert everything to tile-based
-
-
 CVS = {};
 
 (function(){
@@ -546,18 +542,18 @@ CVS = {};
 			y: getTile(pointer.worldY)
 		};
 
+		// we shouldn't do any action if user wants to do the action on the same tile over and over
+		var lastTile = config.lastClickedTile;
+		if (lastTile.x === newPos.x && lastTile.y === newPos.y) return false;
+
+		// we shouldn't save the position if user wants to do action on non-walkable areas
+		var clickedTile = game.map.layer.data[newPos.y][newPos.x];
+		if (!clickedTile.properties.walkable) return false;
+
 		// allow moving only when the state is active (not attacking, etc)
 		switch (current_player.state) {
 			case 'active':
 			case 'moving':
-				// we shouldn't save the position if user wants to move to same tile over and over
-				var lastTile = config.lastClickedTile;
-				if (lastTile.x === newPos.x && lastTile.y === newPos.y) return false;
-
-				// we shouldn't save the position if user wants to move to non-movable areas
-				var clickedTile = game.map.layer.data[newPos.y][newPos.x];
-				if (!clickedTile.properties.walkable) return false;
-
 				onCurrentPlayerMove(newPos);
 
 				config.lastClickedTile = newPos;
