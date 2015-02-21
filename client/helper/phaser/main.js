@@ -385,7 +385,9 @@ CVS = {};
 		cursorTile.y = getTilePos( pointer.worldY );
 	}
 
-	function onPlayerLoggedIn(user, data) {
+	function onPlayerLoggedIn(user, isCurrentUser) {
+
+		var data = PlayerData.findOne({user_id: user._id});
 		// skip everything if the data isn't there
 		if (!data) {
 			console.warn('No user data found.');
@@ -395,22 +397,26 @@ CVS = {};
 		var player = new Player(user, data);
 		config.players.push(player);
 
-		if (Meteor.userId() === user._id) {
+		if (isCurrentUser) {
 			config.currentPlayer = player;
 			game.camera.follow(config.currentPlayer.sprite);
 		}
+
 	}
 
-	function onPlayerLoggedOut(user) {
+	function onPlayerLoggedOut(user, isCurrentUser) {
 		// get the logged out user
 		var logged_out_player = _.where(config.players, {
 			user_id : user._id
 		}, true);
 
+		if (isCurrentUser) {
+			game.camera.unfollow(config.currentPlayer.sprite);
+			config.currentPlayer = null;
+		}
+
 		// remove player from canvas
 		logged_out_player.sprite.kill();
-
-		config.currentPlayer = null;
 
 		// update the array
 		config.players = _.without(config.players, logged_out_player);

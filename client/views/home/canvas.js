@@ -8,19 +8,23 @@ Template.canvas.rendered = function() {
 			added: function(user) {
 				console.log('this user is already logged in', user);
 
-				data = PlayerData.findOne({user_id: user._id});
-
-				CVS.EVENT.onPlayerLoggedIn(user, data);
+				// TODO : timeout needed bcs it couldn't get the Meteor.userId right
+				// still not sure why
+				Meteor.setTimeout(function() {
+					CVS.EVENT.onPlayerLoggedIn(user, user._id === Meteor.userId());
+				}, 0);
 			},
 			removed: function(user) {
 				console.log('this user has just logged out', user);
 
-				CVS.EVENT.onPlayerLoggedOut(user);
+				CVS.EVENT.onPlayerLoggedOut(user, user._id === Meteor.userId());
 			},
 		});
 	});
 
 	player_events.observeChanges({
+		// TODO : so this added function is called for all events, the past event and the new events
+		// we should exclude the past events
 		added: function(event_id, event) {
 			CVS.EVENT.onNewPlayerEvent(event);
 		}
