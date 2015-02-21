@@ -26,7 +26,7 @@ CVS = {};
 	};
 
 	// input related
-	var cursor_tile;
+	var cursor_tile_sprite;
 	keys = {};
 
 	// --------------------------------------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ CVS = {};
 			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.SHIFT);
 			    keys.attack.onDown.add(onPressAttackKey);
 
-			   	cursor_tile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
+			   	cursor_tile_sprite = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
@@ -105,10 +105,11 @@ CVS = {};
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
 
-		this.sprite.animations.add('attack_bow_up', getRange(104, 115), 30, true);
-		this.sprite.animations.add('attack_bow_left', getRange(117, 129), 30, true);
-		this.sprite.animations.add('attack_bow_down', getRange(130, 142), 30, true);
-		this.sprite.animations.add('attack_bow_right', getRange(142, 155), 30, true);
+		var atkspeed = this.data.atkspeed*3;
+		this.sprite.animations.add('attack_bow_up', getRange(104, 115), atkspeed, true);
+		this.sprite.animations.add('attack_bow_left', getRange(117, 129), atkspeed, true);
+		this.sprite.animations.add('attack_bow_down', getRange(130, 142), atkspeed, true);
+		this.sprite.animations.add('attack_bow_right', getRange(142, 155), atkspeed, true);
 
 		this.sprite.animations.add('die', getRange(156, 161), 30, true);
 
@@ -292,10 +293,11 @@ CVS = {};
 	Player.prototype.shootArrow = function (pos) {
 		var point = new Phaser.Point(pos.x*TILESIZE, pos.y*TILESIZE);
 		var angle = point.angle(this.sprite)*180/Math.PI;
+		var speed = this.data.atkspeed;
 
 		if (Math.abs(angle) > 121) {
 			dir = 'right';
-		} else if (angle > 30 && angle < 120) {
+		} else if (angle > 30 && angle < 121) {
 			dir = 'up';
 		} else if (angle < 30 && angle > -32) {
 			dir = 'left';
@@ -316,12 +318,16 @@ CVS = {};
 				pos: pos,
 				point: point,
 				angle: angle-90,
-				speed: 3,
+				speed : speed,
+				dir : dir
 			});
-		}, 200);
+		}, speed*80);
 	}
 
 	Player.prototype.getDamage = function (damage, attacking_user_id) {
+		// died player shouldn't get any damage
+		if (this.state === 'die') return;
+
 		if (damage >= this.data.hp) {
 			// HE'S DEAD, JIM!
 			this.data.hp = 0;
@@ -379,18 +385,24 @@ CVS = {};
 	var Arrow = function (options) {
 		var distance = options.point.distance(options.player.sprite);
 
-		var middle_x = options.pos.x*TILESIZE + (TILESIZE/2);
-		var middle_y = options.pos.y*TILESIZE + (TILESIZE/2);
+		var start_x = options.player.sprite.x + (dir === 'left' || dir === 'right' ? TILESIZE : TILESIZE/2);
+		var start_y = options.player.sprite.y;
 
-		this.sprite = game.add.sprite(options.player.sprite.x+TILESIZE, options.player.sprite.y, 'simplesheet', 5);
+		console.log(start_x);
+
+		// calculate the x and y middle of the destination tile
+		var end_x = options.pos.x*TILESIZE + (TILESIZE/2);
+		var end_y = options.pos.y*TILESIZE + (TILESIZE/2);
+
+		this.sprite = game.add.sprite(start_x, start_y, 'simplesheet', 5);
 		this.sprite.anchor.setTo(0.5, 0.5);
 
 		this.sprite.angle = options.angle;
 
 		var tween = game.add.tween(this.sprite);
 		tween.to({
-			x: middle_x,
-			y: middle_y
+			x: end_x,
+			y: end_y
 		}, options.speed * distance);
 
 		var self = this;
@@ -531,6 +543,8 @@ CVS = {};
 	// ------------------------------
 
 	function onClickGameWorld (pointer) {
+		if (!current_player) return;
+
 		var newPos = {
 			x: getTile(pointer.worldX),
 			y: getTile(pointer.worldY)
@@ -568,8 +582,10 @@ CVS = {};
 	}
 
 	function onMoveMouse (pointer, x, y) {
-		cursor_tile.x = getTilePos( pointer.worldX );
-		cursor_tile.y = getTilePos( pointer.worldY );
+		if (!current_player) return;
+
+		cursor_tile_sprite.x = getTilePos( pointer.worldX );
+		cursor_tile_sprite.y = getTilePos( pointer.worldY );
 	}
 
 	function onPressAttackKey() {
@@ -616,6 +632,8 @@ CVS = {};
 		if (isCurrentUser) {
 			game.camera.unfollow(current_player.sprite);
 			current_player = null;
+			cursor_tile_sprite.x = -TILESIZE;
+			cursor_tile_sprite.y = -TILESIZE;
 		}
 
 		// remove player from canvas

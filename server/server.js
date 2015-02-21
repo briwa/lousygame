@@ -16,7 +16,8 @@ Accounts.onCreateUser(function (options, user) {
 		name: 'name'+randomizer(100),
 		hp: 100,
 		atk: 10,
-		mspeed: 200,
+		atkspeed: 5,
+		mspeed: 250,
 		pos: {
 			x: 10,
 			y: 10
