@@ -51,10 +51,36 @@ Meteor.methods({
 					user_id : options.user_id,
 				}, {
 					$set : {
-						'hp' : damage > hurt_player.hp ? 0 : hurt_player.hp - damage
+						'hp' : damage >= hurt_player.hp ? 0 : hurt_player.hp - damage
 					}
 				});
 			break;
+			case 'die' :
+				var killer = PlayerData.findOne({user_id: options.attr.killer_user_id});
+
+				PlayerData.update({
+					user_id : killer.user_id,
+				}, {
+					$set : {
+						'gold' : 250, // TODO : make it dynamic
+						'exp' : killer.exp += 100 // TODO : make it dynamic
+					}
+				});
+
+				var death_player = PlayerData.findOne({user_id: options.user_id});
+
+				PlayerData.update({
+					user_id : death_player.user_id,
+				}, {
+					$set : {
+						'hp' : 100, // TODO : this value should be from max_hp
+						'pos' : { // TODO : this pos should be the random respawn places
+							x: 0,
+							y: 0
+						}
+					}
+				});
+
 		}
 	}
 })

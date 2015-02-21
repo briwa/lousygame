@@ -110,6 +110,8 @@ CVS = {};
 		this.sprite.animations.add('attack_bow_down', getRange(130, 142), 30, true);
 		this.sprite.animations.add('attack_bow_right', getRange(142, 155), 30, true);
 
+		this.sprite.animations.add('die', getRange(156, 161), 30, true);
+
 		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
 
 		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
@@ -181,7 +183,7 @@ CVS = {};
 		        			} else {
 		        				self.paths = null;
 
-		        				self.sprite.animations.stop(true);
+		        				self.sprite.animations.stop(null, true);
 
 		        				self.state = 'active';
 		        			
@@ -319,8 +321,19 @@ CVS = {};
 		}, 200);
 	}
 
-	Player.prototype.getDamage = function (damage) {
-		this.data.hp = damage > this.data.hp ? 0 : this.data.hp - damage;
+	Player.prototype.getDamage = function (damage, attacking_user_id) {
+		if (damage >= this.data.hp) {
+			// HE'S DEAD, JIM!
+			this.data.hp = 0;
+
+			// only send the event for one user only
+			// remember, we're updating every client here
+			if (this.user_id === current_player.user_id) {
+				onPlayerDies(this, attacking_user_id);
+			}
+		} else {
+			this.data.hp -= damage;	
+		}
 
 		this.setHealthBar();
 	}
@@ -330,6 +343,28 @@ CVS = {};
 		this.healthbar.beginFill(0xFF0000, 1);
 		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4); // TODO: 100 should be from max_hp
 		this.sprite.addChild(this.healthbar);
+	}
+
+	Player.prototype.die = function() {
+		this.sprite.animations.play('die', null, false);
+		this.state = 'die';
+
+		var self = this;
+		setTimeout(function() {
+			self.revive();
+		}, 5000);
+	}
+
+	Player.prototype.revive = function() {
+		this.sprite.x = 0; // TODO : this one should be from random respawn places
+		this.sprite.y = 0;
+
+		this.data.hp = 100; // TODO : reset it back to max_hp
+		this.setHealthBar();
+
+		this.state = 'active';
+		// reset the frame
+		this.sprite.frame = 0;
 	}
 
 	// ------------------------------
@@ -362,16 +397,14 @@ CVS = {};
 		tween.onComplete.add(function() {
 			self.sprite.kill();
 			setPlayerAttributeByUserId(options.player.user_id, {
-				state : options.player.attackarea.alpha ? 'pre-attack' : 'active'
+				state : options.player.attackarea.alpha ? 'active-attack' : 'active'
 			});
 
-			// check if the arrow hit someone
-			var hurt_player = getPlayerByPos(options.pos);
-
-			if (hurt_player) {
+			// check if the arrow hit someone and only save if it's the current client
+			if (options.pos.x === current_player.data.pos.x && options.pos.y === current_player.data.pos.y) {
 				// send events to player events
 				var attacking_player = options.player;
-				onPlayerGetDamage(hurt_player.user_id, attacking_player);
+				onCurrentPlayerGetDamage(attacking_player);
 			}
 		});
 
@@ -506,6 +539,7 @@ CVS = {};
 		// allow moving only when the state is active (not attacking, etc)
 		switch (current_player.state) {
 			case 'active':
+			case 'moving':
 				// we shouldn't save the position if user wants to move to same tile over and over
 				var lastTile = config.lastClickedTile;
 				if (lastTile.x === newPos.x && lastTile.y === newPos.y) return false;
@@ -518,7 +552,7 @@ CVS = {};
 
 				config.lastClickedTile = newPos;
 			break;
-			case 'pre-attack':
+			case 'active-attack':
 				var point = new Phaser.Point(newPos.x*TILESIZE, newPos.y*TILESIZE);
 
 				// only allow the player to shoot if target is within range
@@ -539,12 +573,13 @@ CVS = {};
 	}
 
 	function onPressAttackKey() {
-		if (current_player.state === 'moving') return;
+		// only allow attacking if the state is either active or active-attack
+		if (current_player.state.indexOf('active') === -1) return;
 
 		var new_atk_range_alpha = Math.abs(current_player.attackarea.alpha - 1);
 		current_player.attackarea.alpha = new_atk_range_alpha;
 
-		current_player.state = new_atk_range_alpha ? 'pre-attack' : 'active';
+		current_player.state = new_atk_range_alpha ? 'active-attack' : 'active';
 	}
 
 	function onPlayerLoggedIn(user, isCurrentUser) {
@@ -564,7 +599,7 @@ CVS = {};
 			game.camera.follow(current_player.sprite);
 
 			// deadzone : the middle box of which the camera shouldn't scrolling
-			game.camera.deadzone = new Phaser.Rectangle(200, 150, 240, 180);
+			//game.camera.deadzone = new Phaser.Rectangle(200, 150, 240, 180);
 		}
 	}
 
@@ -618,7 +653,9 @@ CVS = {};
 				player.shootArrow(event.attr.pos);
 			}
 		} else if (event.type === 'get_damage') {
-			player.getDamage(event.attr.damage);
+			player.getDamage(event.attr.damage, event.attr.attacking_user_id);
+		} else if (event.type === 'die') {
+			player.die();
 		}
 	}
 
@@ -638,18 +675,28 @@ CVS = {};
 				atk_type: 'bow', // for now
 				pos: pos
 			}
-		})
+		});
 	}
 
-	function onPlayerGetDamage(target_user_id, attacking_player) {
+	function onCurrentPlayerGetDamage(attacking_player) {
 		Meteor.call('savePlayerEvent', {
-			user_id : target_user_id,
+			user_id : Meteor.userId(),
 			type: 'get_damage',
 			attr: {
 				attacking_user_id : attacking_player.user_id,
 				damage : attacking_player.data.atk,
 			}
-		})
+		});
+	}
+
+	function onPlayerDies(died_player, killer_user_id) {
+		Meteor.call('savePlayerEvent', {
+			user_id: Meteor.userId(),
+			type: 'die',
+			attr: {
+				killer_user_id: killer_user_id
+			}
+		});
 	}
 
 	// ------------------------------
