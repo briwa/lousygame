@@ -45,12 +45,13 @@ Meteor.methods({
 			break;
 			case 'get_damage' : 
 				var hurt_player = PlayerData.findOne({user_id: options.user_id});
+				var damage = options.attr.damage;
 
 				PlayerData.update({
 					user_id : options.user_id,
 				}, {
 					$set : {
-						'hp' : hurt_player.hp -= options.attr.damage
+						'hp' : damage > hurt_player.hp ? 0 : hurt_player.hp - damage
 					}
 				});
 			break;

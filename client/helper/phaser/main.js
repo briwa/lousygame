@@ -498,7 +498,6 @@ CVS = {};
 	// ------------------------------
 
 	function onClickGameWorld (pointer) {
-
 		var newPos = {
 			x: getTile(pointer.worldX),
 			y: getTile(pointer.worldY)
@@ -532,7 +531,6 @@ CVS = {};
 				}
 			break;
 		}
-
 	}
 
 	function onMoveMouse (pointer, x, y) {
@@ -550,7 +548,6 @@ CVS = {};
 	}
 
 	function onPlayerLoggedIn(user, isCurrentUser) {
-
 		var data = PlayerData.findOne({user_id: user._id});
 		// skip everything if the data isn't there
 		if (!data) {
@@ -569,7 +566,6 @@ CVS = {};
 			// deadzone : the middle box of which the camera shouldn't scrolling
 			game.camera.deadzone = new Phaser.Rectangle(200, 150, 240, 180);
 		}
-
 	}
 
 	function onPlayerLoggedOut(user, isCurrentUser) {
