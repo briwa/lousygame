@@ -94,29 +94,35 @@ CVS = {};
 		this.user_id = user._id;
 
 		this.sprite.anchor.setTo(0.25, 0.5);
-		// add animation for walk and attack
+
+		// animations for walk
 		this.sprite.animations.add('walk_up', getRange(1,8) , 30, true);
 		this.sprite.animations.add('walk_left', getRange(13,21), 30, true);
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(39,47), 30, true);
 
+		// animations for attack
 		this.sprite.animations.add('attack_bow_up', getRange(104, 115), 30, true);
 		this.sprite.animations.add('attack_bow_left', getRange(117, 129), 30, true);
 		this.sprite.animations.add('attack_bow_down', getRange(130, 142), 30, true);
 		this.sprite.animations.add('attack_bow_right', getRange(143, 155), 30, true);
 
+		// animations for die
 		this.sprite.animations.add('die', getRange(156, 161), 30, true);
 
+		// text for username
 		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
 		this.name.x = -(this.name.width/2) + this.sprite.width/2 - (TILESIZE/2);
 		this.sprite.addChild(this.name);
 
+		// graphic for healthbar
 		this.healthbar = game.add.graphics(-TILESIZE/2, -TILESIZE);
 		this.healthbar.beginFill(0xFF0000, 1);
 		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4);
 		this.sprite.addChild(this.healthbar);
 
-		this.attackrange = TILESIZE*6;
+		// graphic for attack range
+		this.attackrange = TILESIZE*6; // TODO: this can be from some dynamic data
 		this.attackarea = game.add.graphics(TILESIZE/2, TILESIZE/2);
 		this.attackarea.lineStyle(2, 0x0000FF, 1);
 		this.attackarea.drawCircle(0, 0, this.attackrange*2);
@@ -334,18 +340,41 @@ CVS = {};
 		}
 
 		this.setHealthBar();
+		this.setDamageText(damage);
 	}
 
-	Player.prototype.setHealthBar = function() {
+	Player.prototype.setHealthBar = function(damage) {
 		this.healthbar.clear();
 		this.healthbar.beginFill(0xFF0000, 1);
 		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4); // TODO: 100 should be from max_hp
-		this.sprite.addChild(this.healthbar);
+	}
+
+	Player.prototype.setDamageText = function(damage) {
+		var self = this;
+
+		function clearDamageText() {
+			self.damagetween.stop();
+			if (self.damagetext) self.damagetext.destroy();
+			self.damagetext = null;
+		}
+
+		if (this.damagetween && this.damagetween) clearDamageText();
+
+		// text for damage caption
+		this.damagetext = game.add.text(TILESIZE, -TILESIZE+10, damage, { font: '14px Arial', fill: '#ff0000', align: 'center' });
+		this.damagetext.alpha = 1;
+		this.sprite.addChild(this.damagetext);
+
+		this.damagetween = game.add.tween(this.damagetext).to({y: -TILESIZE+12}, 200, Phaser.Easing.Linear.None, true, 0, 4, false);
+
+		this.damagetween.onComplete.add(clearDamageText);
 	}
 
 	Player.prototype.die = function() {
 		this.sprite.animations.play('die', null, false);
 		this.state = 'die';
+
+		game.add.tween(this.sprite).to({alpha: 0}, 2000, Phaser.Easing.Linear.None, true);
 
 		var self = this;
 		setTimeout(function() {
@@ -359,6 +388,8 @@ CVS = {};
 
 		this.data.hp = 100; // TODO : reset it back to max_hp
 		this.setHealthBar();
+
+		game.add.tween(this.sprite).to({alpha: 1}, 500, Phaser.Easing.Linear.None, true);
 
 		this.state = 'active';
 		// reset the frame
