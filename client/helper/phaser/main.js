@@ -71,7 +71,6 @@ CVS = {};
 
 			   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
 
-
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
 			}, 
@@ -94,7 +93,8 @@ CVS = {};
 
 		this.game = game;
 		this.data = data;
-		this.sprite = game.add.sprite( getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player', 26 );
+
+		this.sprite = game.add.sprite(getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player', 26);
 		this.user_id = user._id;
 
 		this.sprite.anchor.setTo(0.25, 0.5);
@@ -103,6 +103,16 @@ CVS = {};
 		this.sprite.animations.add('walk_left', getRange(14,21), 30, true);
 		this.sprite.animations.add('walk_down', getRange(27,34), 30, true);
 		this.sprite.animations.add('walk_right', getRange(40,47), 30, true);
+
+		this.name = game.add.text(0, TILESIZE, this.data.name, { font: '16px Arial', fill: '#ffffff', align: 'center' });
+		this.name.x = -(this.name.width/2) + this.sprite.width/2 - (TILESIZE/2);
+		this.sprite.addChild(this.name);
+
+		this.healthbar = game.add.graphics(-TILESIZE/2, -TILESIZE);
+		this.healthbar.beginFill(0xFF0000, 1);
+		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4);
+
+		this.sprite.addChild(this.healthbar);
 
 		return this;
 	}
@@ -490,7 +500,7 @@ CVS = {};
 	}
 
 	function getCurrentPlayer() {
-		return game.currentPlayer;
+		return config.currentPlayer;
 	}
 
 	function getPlayerByUserId(user_id) {
