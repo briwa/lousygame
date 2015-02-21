@@ -1,26 +1,29 @@
 Template.canvas.rendered = function() {
 	// WARNING : for now it is assumed the users and userpos length is the same
 	var users = Meteor.users.find({});
-	var userpos = PlayerPos.find({});
+	var player_events = PlayerEvents.find({});
 
-	userpos.observeChanges({
-		changed: function(posId, newPos) {
-			console.log('NEW SAVE FOUND!');
-			var player = CVS.MAIN.getPlayerByPosId(posId);
+	CVS.MAIN.init(function() {
+		users.observe({
+			added: function(user) {
+				console.log('this user is already logged in', user);
 
-			if (newPos.x === undefined) newPos.x = player.sprite.x;
-			if (newPos.y === undefined) newPos.y = player.sprite.y;
+				data = PlayerData.findOne({user_id: user._id});
 
-			if (player.paths) {
-				player.stopAtNearest(newPos);
-			} else {
-				player.moveTo(newPos);
-			}
-		}
-	})
+				CVS.EVENT.onPlayerLoggedIn(user, data);
+			},
+			removed: function(user) {
+				console.log('this user has just logged out', user);
 
-	CVS.MAIN.init({
-		players: users.fetch(),
-		playerpos: userpos.fetch()
+				CVS.EVENT.onPlayerLoggedOut(user);
+			},
+		});
 	});
+
+	player_events.observeChanges({
+		added: function(event_id, event) {
+			CVS.EVENT.onNewPlayerEvent(event);
+		}
+	});
+
 }

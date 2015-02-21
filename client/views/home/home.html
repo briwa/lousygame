@@ -1,10 +1,5 @@
 <template name="home">
 	<h1>Welcome</h1>
-	{{ #if currentUser }}
-		<a href="/logout">Logout</a>
-		{{ > canvas }}
-	{{ else }}
-		<!-- something else -->
-		<a href="/login">Login</a> or <a href="/signup">Signup</a>
-	{{ /if }}
+	{{ > loginButtons }}
+	{{ > canvas }}
 </template>

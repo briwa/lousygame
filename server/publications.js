@@ -1,7 +1,13 @@
-Meteor.publish('allUser', function() {
-	return Meteor.users.find({});
+Meteor.publish('online_users', function() {
+	return Meteor.users.find({
+		'status.online' : true
+	});
 });
 
-Meteor.publish('allPos', function() {
-	return PlayerPos.find({});
+Meteor.publish('all_player_data', function() {
+	return PlayerData.find({});
+});
+
+Meteor.publish('all_player_events', function() {
+	return PlayerEvents.find({});
 });

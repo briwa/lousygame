@@ -20,110 +20,66 @@ CVS = {};
 	// configs and debugs
 	var config = {
 		players: [],
-		playerpos: [],
-		currentPlayerId: null,
+		currentPlayer: null,
 		lastClickedTile: {}
 	};
-	// DEBUG
-	var clicks = 0;
 
 	// input related
-	var cursors;
 	var cursorTile;
 
 	// --------------------------------------------------------------------------------------------------------------
 	// all game related funcs START
 	// ------------------------------
 
-	function init (cfg) {
+	function init (onAfterInit) {
 
-		game = new Phaser.Game(CVS_WIDTH, CVS_HEIGHT, Phaser.CANVAS, 'phaser-canvas', { preload: preload, create: create, update: update, render: render });
+		game = new Phaser.Game(CVS_WIDTH, CVS_HEIGHT, Phaser.CANVAS, 'phaser-canvas', { 
+			preload: function() {
+				// this is to disable pause on lost focus
+				game.stage.disableVisibilityChange = true;
 
-		config.players = cfg.players;
-		config.playerpos = cfg.playerpos;
+				// image for sprites
+			    game.load.image('background','sprites/debug-grid-1920x1920.png');
+			    game.load.image('player','sprites/phaser-dude.png');
+			    game.load.image('cursorTile', 'sprites/default.png');
+
+			    // for tiled maps
+			    game.load.tilemap('weirdmap', 'sprites/weirdmap.json', null, Phaser.Tilemap.TILED_JSON);
+			    game.load.image('tmw_desert_spacing', 'sprites/tmw_desert_spacing.png');
+			}, 
+			create: function() {
+				// world setup
+			    game.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+			    game.map = game.add.tilemap('weirdmap');
+			    game.map.addTilesetImage('tmw_desert_spacing', 'tmw_desert_spacing');
+
+			    game.layer = game.map.createLayer('Layer1');
+			    game.layer2 = game.map.createLayer('Layer2');
+
+			    // add phaser astar plugin!
+			    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
+			    game.astar.walkables = [10, 30];
+			    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
+
+			    // deadzone : the middle box of which the camera shouldn't scrolling
+			    // game.camera.deadzone = new Phaser.Rectangle(100, 100, DEADZONE_WIDTH, DEADZONE_HEIGHT);
+
+			    game.input.onDown.add(onClickGameWorld, this);
+
+			    game.input.addMoveCallback(onMoveMouse, this);
+
+			   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'cursorTile');
+
+			    // do preparations of dynamic sprites at this point
+			    onAfterInit();
+			    isGameReady = true;
+			}, 
+		});
 
 		// DEBUG
 		window.game = game;
 	}
-
-	function preload() {
-
-		// this is to disable pause on lost focus
-		game.stage.disableVisibilityChange = true;
-
-		// image for sprites
-	    game.load.image('background','sprites/debug-grid-1920x1920.png');
-	    game.load.image('player','sprites/phaser-dude.png');
-	    game.load.image('cursorTile', 'sprites/default.png');
-
-	    // for tiled maps
-	    game.load.tilemap('weirdmap', 'sprites/weirdmap.json', null, Phaser.Tilemap.TILED_JSON);
-	    game.load.image('tmw_desert_spacing', 'sprites/tmw_desert_spacing.png');
-
-	}
-
-	function create() {
-
-		// world setup
-	    game.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-	    game.map = game.add.tilemap('weirdmap');
-	    game.map.addTilesetImage('tmw_desert_spacing', 'tmw_desert_spacing');
-
-	    game.layer = game.map.createLayer('Layer1');
-	    game.layer2 = game.map.createLayer('Layer2');
-
-	    // add phaser astar plugin!
-	    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
-	    game.astar.walkables = [10, 30];
-	    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
-
-	    // deadzone : the middle box of which the camera shouldn't scrolling
-	    // game.camera.deadzone = new Phaser.Rectangle(100, 100, DEADZONE_WIDTH, DEADZONE_HEIGHT);
-
-	    // only do all player setups if there's actually player there
-	    // just a precautionary methods tho, there will always be at least one player
-	    if (config.players.length > 0) {
-
-	    	// store users data to variable bcs we will totally override them
-	    	// TODO: - this is completely redundant
-	    	//         need to find a better way to tie up USERS to PLAYERPOS
-	    	//       - NAMING CONVENTION! omg sometimes its player, sometimes its user. consistent!  
-	    	var users = config.players;
-	    	var userposs = config.playerpos;
-	    	config.players = [];
-	    	config.playerpos = [];
-
-	    	for (var i = users.length; i--;) {
-	    		var playerObj = users[i];
-	    		var playerPos = _.where(userposs, {
-	    			userId: playerObj._id
-	    		}, true);
-
-	    		var player = new Player( playerObj.username, playerPos, playerObj._id );
-	    	}
-
-	    	game.currentPlayer = _.where(config.players, {
-	    		userId: Meteor.userId()
-	    	}, true);
-
-	    	// DEBUG
-	    	game.currentPlayer.sprite.tint = Math.random() * 0xFFFFFF;
-
-	    	game.camera.follow(game.currentPlayer.sprite);
-
-		    game.input.onDown.add(onClickGameWorld, this);
-
-		    game.input.addMoveCallback(onMoveMouse, this);
-
-		    cursors = game.input.keyboard.createCursorKeys();
-		   	cursorTile = game.add.sprite(-TILESIZE, -TILESIZE, 'cursorTile');
-	    }
-	}
-
-	function update() {}
-
-	function render() {}
 
 	// ------------------------------
 	// all game related funcs END
@@ -134,16 +90,12 @@ CVS = {};
 	// ------------------------------
 
 	// the Player object
-	var Player = function (name, pos, userId) {
+	var Player = function (user, data) {
+
 		this.game = game;
-
-		this.sprite = game.add.sprite( getTilePos(pos.x), getTilePos(pos.y), 'player' );
-		this.userId = userId;
-		this.posId = pos._id;
-
-		this.speed = PLAYER_SPEED;
-
-		config.players.push( this );
+		this.data = data;
+		this.sprite = game.add.sprite( getTilePos(this.data.pos.x), getTilePos(this.data.pos.y), 'player' );
+		this.user_id = user._id;
 
 		return this;
 	}
@@ -155,28 +107,16 @@ CVS = {};
 	**/
 	Player.prototype.moveTo = function (endPos) {
 
-		console.log('START FINDING A NEW PATH');
-
 		var self = this;
 
 		game.astar.setCallbackFunction(function(paths) {
 	    	
 	    	if (paths) {
-
-		        // DEBUG
-		        // if (currentPlayer.lastPaths) {
-			       //  for(var i = 0, ilen = currentPlayer.lastPaths.length; i < ilen; i++) {
-		        //     	game.map.putTile(null, currentPlayer.lastPaths[i].x, currentPlayer.lastPaths[i].y, game.layer2);
-		        // 	}
-		        // }
-		        // currentPlayer.lastPaths = paths;
 		 
 		 		// reset current paths
 		 		self.paths = [];
 
 		        for(var i = 0; i < paths.length; i++) {
-		        	// DEBUG
-	            	// game.map.putTile(15, paths[i].x, paths[i].y, game.layer2);
 
 	            	var path = getDir( paths, i, self );
 	            	
@@ -187,12 +127,12 @@ CVS = {};
             			tween.to({
 	            			x: path.x * TILESIZE,
 	            			y: path.y * TILESIZE,
-	            		}, self.speed * path.dist );
+	            		}, self.data.mspeed * path.dist );
 
 	            		tween.onStart.add(function() {
 	            			// sprite animation with direction goes here
-	            			if (self.paths[0])
-	            				console.log('I\'m going', self.paths[0].dir);
+	            			//if (self.paths[0])
+	            				//console.log('I\'m going', self.paths[0].dir);
 		        		}, game);	        	
 
 			        	tween.onComplete.add(function() {
@@ -228,22 +168,6 @@ CVS = {};
 
 	    game.astar.preparePathCalculation(startTile, endTile);
 	    game.astar.calculatePath();
-
-	}
-
-	/**
-	* Save an end position of player movement
-	* It will then trigger Player.moveTo after successful databse update
-	**/
-	Player.prototype.savePos = function (newPos) {
-
-		console.log('SAVING POS');
-
-		Meteor.call('updatePlayerPos', {
-			userId: this.userId,
-			x: newPos.x,
-			y: newPos.y
-		})
 
 	}
 
@@ -299,7 +223,7 @@ CVS = {};
 			tween.to({
 				x: nearestTile.x * TILESIZE,
 				y: nearestTile.y * TILESIZE
-			}, duration * this.speed);
+			}, duration * this.data.mspeed);
 
 			tween.onComplete.add(function() {
 
@@ -450,7 +374,8 @@ CVS = {};
 		var clickedTile = game.map.layer.data[newTile.y][newTile.x];
 		if (!clickedTile.properties.walkable) return false;
 
-		game.currentPlayer.savePos(newPos);
+		onCurrentPlayerMove(newPos);
+
 		config.lastClickedTile = newTile;
 
 	}
@@ -458,6 +383,73 @@ CVS = {};
 	function onMoveMouse (pointer, x, y) {
 		cursorTile.x = getTilePos( pointer.worldX );
 		cursorTile.y = getTilePos( pointer.worldY );
+	}
+
+	function onPlayerLoggedIn(user, data) {
+		// skip everything if the data isn't there
+		if (!data) {
+			console.warn('No user data found.');
+			return;
+		}
+
+		var player = new Player(user, data);
+		config.players.push(player);
+
+		if (Meteor.userId() === user._id) {
+			config.currentPlayer = player;
+			game.camera.follow(config.currentPlayer.sprite);
+		}
+	}
+
+	function onPlayerLoggedOut(user) {
+		// get the logged out user
+		var logged_out_player = _.where(config.players, {
+			user_id : user._id
+		}, true);
+
+		// remove player from canvas
+		logged_out_player.sprite.kill();
+
+		config.currentPlayer = null;
+
+		// update the array
+		config.players = _.without(config.players, logged_out_player);
+	}
+
+	function onNewPlayerEvent(event) {
+
+		if (config.players.length === 0) {
+			console.warn('No players in the game');
+			return;
+		}
+
+		var player = getPlayerByUserId(event.user_id);
+		if (!player) {
+			console.warn('Player not found.');
+			return;
+		}
+
+		if (event.type === 'move') {
+			var new_pos = event.attr;
+			if (new_pos.x === undefined) new_pos.x = player.sprite.x;
+			if (new_pos.y === undefined) new_pos.y = player.sprite.y;
+
+			// if player.paths exist, it means it's coming from the current player itself
+			if (player.paths) {
+				player.stopAtNearest(new_pos);
+			} else {
+				// this means move another player
+				player.moveTo(new_pos);
+			}
+		}
+	}
+
+	function onCurrentPlayerMove(pos) {
+		Meteor.call('savePlayerEvent', {
+			user_id : Meteor.userId(),
+			type: 'move',
+			attr: pos
+		})
 	}
 
 	// ------------------------------
@@ -477,29 +469,31 @@ CVS = {};
 		return game.currentPlayer;
 	}
 
-	function getPlayerByPosId(posId) {
+	function getPlayerByUserId(user_id) {
 
 		if (config.players.length === 0) return false;
 
 		return _.where(config.players, {
-			'posId' : posId
+			'user_id' : user_id
 		}, true);
 
 	}
 
-	var func = {
+
+	CVS.MAIN = {
 		init: init,
-		preload: preload,
-		create: create,
-		render: render,
 
 		getGame: getGame,
 		getConfig: getConfig,
 		getCurrentPlayer: getCurrentPlayer,
-		getPlayerByPosId : getPlayerByPosId,
+		getPlayerByUserId : getPlayerByUserId,
 
-	}
+	};
 
-	CVS.MAIN = func;
+	CVS.EVENT = {
+		onPlayerLoggedIn : onPlayerLoggedIn,
+		onPlayerLoggedOut : onPlayerLoggedOut,
+		onNewPlayerEvent : onNewPlayerEvent
+	};
 
 })();

@@ -6,26 +6,11 @@ Router.map(function () {
 	this.route('home', {
 		waitOn: function() {
 			return [
-				Meteor.subscribe('allUser'),
-				Meteor.subscribe('allPos')
+				Meteor.subscribe('online_users'),
+				Meteor.subscribe('all_player_events'),
+				Meteor.subscribe('all_player_data'),
 			];
 		},
 		path: '/'
-	});
-
-	this.route('login', {
-		path: '/login'
-	});
-
-	this.route('signup', {
-		path: '/signup'
-	});
-
-	this.route('logout', {
-		path: '/logout',
-		action: function() {
-			Meteor.logout();
-			this.redirect('/');
-		}
 	});
 })
