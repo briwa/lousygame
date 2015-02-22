@@ -7,6 +7,8 @@ CVS = {};
 		CVS_HEIGHT = 480,
 		WORLD_WIDTH = 960,
 		WORLD_HEIGHT = 960,
+		WORLD_TILE_WIDTH = 30,
+		WORLD_TILE_HEIGHT = 30,
 		TILESIZE = 32;
 
 	// the GAME object..... this is where it all started
@@ -18,7 +20,7 @@ CVS = {};
 	var config = {
 		players: [],
 		map_items: [],
-		lastClickedTile: {}
+		last_clicked_tile: {}
 	};
 
 	// input related
@@ -83,7 +85,9 @@ CVS = {};
 						// so first do the kill for current client, and sprite.destroy() for all clients
 						item_sprite.kill();
 
-						onCurrentPlayerHitItem(current_player, item_sprite.item);
+						var next_item_pos = getRandomWalkableTile();
+
+						onCurrentPlayerHitItem(current_player, item_sprite.item, next_item_pos);
 					});
 				}
 			},
@@ -248,7 +252,7 @@ CVS = {};
 	* Player will move with tween to the nearest position and then execute Player.savePos for the new direction
 	* then trigger another move
 	**/
-	Player.prototype.stopAtNearest = function (newPos) {
+	Player.prototype.stopAtNearest = function (new_pos) {
 		// only do it if the paths exist
 		if (!this.paths[0]) return;
 
@@ -297,12 +301,12 @@ CVS = {};
 
 			var self = this;
 			tween.onComplete.add(function() {
-				self.moveTo(newPos);
+				self.moveTo(new_pos);
 			}, game);
 
 			tween.start();
 		} else {
-			this.moveTo(newPos);
+			this.moveTo(new_pos);
 		}
 	}
 
@@ -544,6 +548,25 @@ CVS = {};
 		return Math.floor( rawPos / TILESIZE );
 	}
 
+	function isTileWalkable(x, y) {
+		var tile = game.map.layer.data[y][x];
+		return tile.properties.walkable;
+	}
+
+	function getRandomWalkableTile() {
+		var x = randomizer(WORLD_TILE_WIDTH);
+		var y = randomizer(WORLD_TILE_HEIGHT);
+
+		if (!isTileWalkable(x, y)) {
+			return getRandomWalkableTile();
+		} else {
+			return {
+				x: x,
+				y: y
+			};
+		}
+	}
+
 	/**
 	* Find a direction and distance from one path to another
 	**/
@@ -645,33 +668,32 @@ CVS = {};
 	function onClickGameWorld (pointer) {
 		if (!current_player) return;
 
-		var newPos = {
+		var new_pos = {
 			x: getTile(pointer.worldX),
 			y: getTile(pointer.worldY)
 		};
 
 		// we shouldn't do any action if user wants to do the action on the same tile over and over
-		var lastTile = config.lastClickedTile;
-		if (lastTile.x === newPos.x && lastTile.y === newPos.y) return false;
+		var lastTile = config.last_clicked_tile;
+		if (lastTile.x === new_pos.x && lastTile.y === new_pos.y) return;
 
 		// we shouldn't save the position if user wants to do action on non-walkable areas
-		var clickedTile = game.map.layer.data[newPos.y][newPos.x];
-		if (!clickedTile.properties.walkable) return false;
+		if (!isTileWalkable(new_pos.x, new_pos.y)) return;
 
 		// allow moving only when the state is active (not attacking, etc)
 		switch (current_player.state) {
 			case 'active':
 			case 'moving':
-				onCurrentPlayerMove(newPos);
+				onCurrentPlayerMove(new_pos);
 
-				config.lastClickedTile = newPos;
+				config.last_clicked_tile = new_pos;
 			break;
 			case 'active-attack':
-				var point = new Phaser.Point(newPos.x*TILESIZE, newPos.y*TILESIZE);
+				var point = new Phaser.Point(new_pos.x*TILESIZE, new_pos.y*TILESIZE);
 
 				// only allow the player to shoot if target is within range
 				if (current_player.attackrange - point.distance(current_player.sprite) > -TILESIZE/2) {
-					onCurrentPlayerAttack(newPos);
+					onCurrentPlayerAttack(new_pos);
 				} else {
 					// trigger moving instead
 					onDownAttackKey();
@@ -714,7 +736,7 @@ CVS = {};
 		if (isCurrentUser) {
 			current_player = player;
 
-			config.lastClickedTile = player.data.pos;
+			config.last_clicked_tile = player.data.pos;
 
 			game.camera.follow(current_player.sprite);
 
@@ -848,17 +870,14 @@ CVS = {};
 		}
 	}
 
-	function onCurrentPlayerHitItem(player, item) {
+	function onCurrentPlayerHitItem(player, item, next_item_pos) {
 		Meteor.call('savePlayerEvent', {
 			user_id: Meteor.userId(),
 			type: 'get_item',
 			attr: {
 				item_id : item.data._id,
 				effect : item.data.effect,
-				next_pos : {
-					x : randomizer(30),
-					y : randomizer(30)
-				}
+				next_pos : next_item_pos
 			}
 		});
 	}

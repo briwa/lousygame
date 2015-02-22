@@ -21,13 +21,15 @@ Meteor.startup(function() {
 			'mspeed+5',
 			'mspeed+10'
 		];
-		for (var i = 8; i--;) {
-			var item_effect = item_effects[randomizer(item_effects.length)];
+		
+		// array of item position... shameful
+		// this is a workaround so that they won't spawn to non-walkable tiles
+		var item_pos = [{'x':14,'y':10},{'x':9,'y':4},{'x':23,'y':11},{'x':2,'y':21},{'x':16,'y':20},{'x':16,'y':27},{'x':28,'y':29},{'x':15,'y':0},{'x':16,'y':27},{'x':4,'y':12},{'x':25,'y':17}];
+
+		for (var i = item_effects.length; i--;) {
+			var item_effect = item_effects[i];
 			MapItemData.insert({
-				pos: {
-					x: randomizer(30), // non-walkable tiles should be taken in account
-					y: randomizer(30), // non-walkable tiles should be taken in account
-				},
+				pos: item_pos[i],
 				effect: item_effect,
 				tilenum : item_effect.indexOf('hp') >= 0 ? 6 + randomizer(6) : 12 + randomizer(6),
 				taken : false
@@ -163,7 +165,7 @@ Meteor.methods({
 							}
 						});
 
-						props[effect_type] = props['max_'+effect_type];
+						props[effect_type] = affected_player['max_'+effect_type];
 
 						PlayerData.update({
 							user_id : affected_player.user_id,
