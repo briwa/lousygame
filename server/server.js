@@ -2,6 +2,8 @@ var randomizer = function (value) {
 	return Math.floor(Math.random() * value);
 }
 
+var RESPAWN_POSITION = [{x: 1, y: 1}, {x: 28, y: 1}, {x: 28, y: 28}, {x: 1, y: 28}]; // TODO : duplicate code in client and server
+
 Meteor.startup(function() {
 	// TODO : find a better way to do this
 	PlayerEvents.remove({});
@@ -24,7 +26,7 @@ Meteor.startup(function() {
 		
 		// array of item position... shameful
 		// this is a workaround so that they won't spawn to non-walkable tiles
-		var item_pos = [{'x':14,'y':10},{'x':9,'y':4},{'x':23,'y':11},{'x':2,'y':21},{'x':16,'y':20},{'x':16,'y':27},{'x':28,'y':29},{'x':15,'y':0},{'x':16,'y':27},{'x':4,'y':12},{'x':25,'y':17}];
+		var item_pos = [{'x':14,'y':10},{'x':9,'y':4},{'x':23,'y':11},{'x':2,'y':21},{'x':16,'y':20},{'x':16,'y':27},{'x':21,'y':3},{'x':15,'y':0},{'x':16,'y':27},{'x':4,'y':12},{'x':25,'y':17}];
 
 		for (var i = item_effects.length; i--;) {
 			var item_effect = item_effects[i];
@@ -53,10 +55,7 @@ Accounts.onCreateUser(function (options, user) {
 		max_atkspeed: 5,
 		mspeed: 10,
 		max_mspeed: 10,
-		pos: {
-			x: 10,
-			y: 10
-		},
+		pos: RESPAWN_POSITION[randomizer(4)],
 		gold: 0,
 		exp: 0
 	});
@@ -109,11 +108,8 @@ Meteor.methods({
 					user_id : death_player.user_id,
 				}, {
 					$set : {
-						'hp' : 100, // TODO : this value should be from max_hp
-						'pos' : { // TODO : this pos should be the random respawn places
-							x: 0,
-							y: 0
-						}
+						'hp' : death_player.max_hp,
+						'pos' : options.attr.next_respawn_pos
 					}
 				});
 			break;

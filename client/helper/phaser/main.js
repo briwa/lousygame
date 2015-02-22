@@ -9,7 +9,8 @@ CVS = {};
 		WORLD_HEIGHT = 960,
 		WORLD_TILE_WIDTH = 30,
 		WORLD_TILE_HEIGHT = 30,
-		TILESIZE = 32;
+		TILESIZE = 32,
+		RESPAWN_POSITION = [{x: 1, y: 1}, {x: 28, y: 1}, {x: 28, y: 28}, {x: 1, y: 28}]; 
 
 	// the GAME object..... this is where it all started
 	var game;
@@ -25,7 +26,7 @@ CVS = {};
 
 	// input related
 	var cursor_tile_sprite;
-	keys = {};
+	var keys = {};
 
 	// --------------------------------------------------------------------------------------------------------------
 	// all game related funcs START
@@ -60,7 +61,7 @@ CVS = {};
 
 			    // add phaser astar plugin!
 			    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
-			    game.astar.walkables = [1];
+			    game.astar.walkables = [1, 3];
 			    game.astar.setGrid(game.map.layers[0].data, game.astar.walkables);
 
 			    game.input.onDown.add(onClickGameWorld, this);
@@ -70,7 +71,7 @@ CVS = {};
 			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.SHIFT);
 			    keys.attack.onDown.add(onDownAttackKey);
 
-			   	cursor_tile_sprite = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
+			   	cursor_tile_sprite = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 3);
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
@@ -159,7 +160,7 @@ CVS = {};
 		// graphic for attack range
 		this.attackrange = TILESIZE*6; // TODO: this can be from some dynamic data
 		this.attackarea = game.add.graphics(TILESIZE/2, TILESIZE/2);
-		this.attackarea.lineStyle(2, 0x0000FF, 1);
+		this.attackarea.lineStyle(2, 0xFF0000, 1);
 		this.attackarea.drawCircle(0, 0, this.attackrange*2);
 		this.sprite.addChild(this.attackarea);
 		this.attackarea.alpha = 0;
@@ -207,8 +208,6 @@ CVS = {};
 
 	            		// everytime a tween ends, decide whether to tween to the next joint or just stop
 			        	tween.onComplete.add(function() {
-			        		
-			        		var dir = self.paths[0].dir;
 		        			self.paths.shift();
 
 		        			// there's still path, tween to the next
@@ -395,7 +394,7 @@ CVS = {};
 		this.damagetween.onComplete.add(clearDamageText);
 	}
 
-	Player.prototype.die = function() {
+	Player.prototype.die = function(next_respawn_pos) {
 		this.sprite.animations.play('die', null, false);
 		this.state = 'die';
 
@@ -403,13 +402,13 @@ CVS = {};
 
 		var self = this;
 		setTimeout(function() {
-			self.revive();
+			self.revive(next_respawn_pos);
 		}, 5000);
 	}
 
-	Player.prototype.revive = function() {
-		this.sprite.x = 0; // TODO : this one should be from random respawn places
-		this.sprite.y = 0;
+	Player.prototype.revive = function(next_respawn_pos) {
+		this.sprite.x = next_respawn_pos.x * TILESIZE;
+		this.sprite.y = next_respawn_pos.y * TILESIZE;
 
 		this.data.hp = 100; // TODO : reset it back to max_hp
 		this.setHealthBar();
@@ -417,8 +416,9 @@ CVS = {};
 		game.add.tween(this.sprite).to({alpha: 1}, 500, Phaser.Easing.Linear.None, true);
 
 		this.state = 'active';
+
 		// reset the frame
-		this.sprite.frame = 0;
+		this.sprite.frame = 26;
 	}
 
 	Player.prototype.getItem = function(effect) {
@@ -799,7 +799,7 @@ CVS = {};
 				player.getDamage(event.attr.damage, event.attr.attacking_user_id);
 			break;
 			case 'die':
-				player.die();
+				player.die(event.attr.next_respawn_pos);
 			break;
 			case 'get_item':
 				var item = _.where(config.map_items, {
@@ -851,7 +851,8 @@ CVS = {};
 			user_id: Meteor.userId(),
 			type: 'die',
 			attr: {
-				killer_user_id: killer_user_id
+				killer_user_id: killer_user_id,
+				next_respawn_pos : RESPAWN_POSITION[randomizer(4)]
 			}
 		});
 	}

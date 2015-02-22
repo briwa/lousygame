@@ -7,10 +7,15 @@
     <property name="walkable" value="true"/>
    </properties>
   </tile>
+  <tile id="2">
+   <properties>
+    <property name="walkable" value="true"/>
+   </properties>
+  </tile>
  </tileset>
  <layer name="layer1" width="30" height="30">
   <data encoding="base64" compression="zlib">
-   eJztlsEaABAIg8v7P7Sbq5iV6LBj31/ZoCKipaFmFIMbNZsHlzmPF9e6M4SLnM8uF93Tj9ydLHlkLSOXkVM2F7lLEd+iPd/sg4zcFR+cfHejfFC1b9cisv6do/orzdUBiG0D4Q==
+   eJztlzkSQCEIQ1Hvf2d7hlEkRP9ikU55BsGliUhTKsnS8S1lMz1sa3x1KsIejfXGjPieeWPknOlN+9mVU2/OEC6yP1Eumqc/ciO9xOoDtl82l9GnbC5yliJ1i675yXXwRu5KHWTeu6fq4M799tyZMt7Oq+vb9VcYMdncE/8ji9MBrBoESw==
   </data>
  </layer>
 </map>
