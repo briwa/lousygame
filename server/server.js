@@ -1,13 +1,42 @@
+var randomizer = function (value) {
+	return Math.floor(Math.random() * value);
+}
+
 Meteor.startup(function() {
+	// TODO : find a better way to do this
 	PlayerEvents.remove({});
+
+	// TODO : find a better way to do this
+	if (MapItemData.find({}).fetch().length === 0) {
+		var item_effects = [
+			'hp+20',
+			'hp+40',
+			'hp+60',
+			'hp+80',
+			'hp+100',
+			'atk+10',
+			'atk+20',
+			'atkspeed+3',
+			'atkspeed+5',
+			'mspeed+5',
+			'mspeed+10'
+		];
+		for (var i = 8; i--;) {
+			var item_effect = item_effects[randomizer(item_effects.length)];
+			MapItemData.insert({
+				pos: {
+					x: randomizer(30), // non-walkable tiles should be taken in account
+					y: randomizer(30), // non-walkable tiles should be taken in account
+				},
+				effect: item_effect,
+				tilenum : item_effect.indexOf('hp') >= 0 ? 6 + randomizer(6) : 12 + randomizer(6),
+				taken : false
+			});
+		}
+	}
 });
 
 Accounts.onCreateUser(function (options, user) {
-
-	var randomizer = function (value) {
-		return Math.floor( Math.random() * value );
-	}
-
 	// TODO : - 800 and 600 is supposed to be the world's size, find a way to get a global vars for client AND server
 	//        - non-walkable tiles should be taken in account, so x y pos should exclude those non-walkables
 
@@ -15,9 +44,13 @@ Accounts.onCreateUser(function (options, user) {
 		user_id: user._id,
 		name: user.username,
 		hp: 100,
+		max_hp: 100,
 		atk: 10,
+		max_atk: 10,
 		atkspeed: 5,
+		max_atkspeed: 5,
 		mspeed: 10,
+		max_mspeed: 10,
 		pos: {
 			x: 10,
 			y: 10
@@ -81,6 +114,57 @@ Meteor.methods({
 						}
 					}
 				});
+			break;
+			case 'get_item' :
+				var item_id = options.attr.item_id;
+				MapItemData.update({
+					_id: item_id,
+				}, {
+					$set: {
+						'taken' : true,
+						'pos' : options.attr.next_pos
+					}
+				});
+
+				Meteor.setTimeout(function() {
+					MapItemData.update({
+						_id: item_id,
+					}, {
+						$set: {
+							'taken' : false
+						}
+					});
+				}, 10000); // ten seconds then revive
+
+				// TODO : this calculation is duplicated. it also happened in client. to be refactored
+				var affected_player = PlayerData.findOne({user_id: options.user_id});
+				var effect = options.attr.effect.split('+');
+				var effect_type = effect[0];
+				var effect_amount = parseInt(effect[1]);
+
+				var props = {};
+				props[effect_type] = affected_player[effect_type] + effect_amount;
+
+				if (props.hp > 100) props.hp = 100;
+
+				PlayerData.update({
+					user_id : affected_player.user_id,
+				}, {
+					$set : props
+				});
+
+				if (effect_type !== 'hp') {
+					Meteor.setTimeout(function() {
+						PlayerEvents.insert({
+							user_id : affected_player.user_id,
+							type : 'restore_status',
+							attr : {
+								type : effect_type
+							}
+						})
+					}, 10000);
+				}
+			break;
 
 		}
 	}

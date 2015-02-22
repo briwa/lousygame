@@ -11,3 +11,7 @@ Meteor.publish('all_player_data', function() {
 Meteor.publish('all_player_events', function() {
 	return PlayerEvents.find({});
 });
+
+Meteor.publish('all_map_items', function() {
+	return MapItemData.find();
+});

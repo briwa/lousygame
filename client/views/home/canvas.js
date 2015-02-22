@@ -2,6 +2,7 @@ Template.canvas.rendered = function() {
 	// WARNING : for now it is assumed the users and userpos length is the same
 	var users = Meteor.users.find({});
 	var player_events = PlayerEvents.find({});
+	var map_items = MapItemData.find({});
 
 	CVS.MAIN.init(function() {
 		users.observe({
@@ -18,6 +19,19 @@ Template.canvas.rendered = function() {
 				CVS.EVENT.onPlayerLoggedOut(user, user._id === Meteor.userId());
 			},
 		});
+
+		CVS.EVENT.onInitMapItems(map_items.fetch());
+
+		map_items.observe({
+			changed: function(new_item_data, old_item_data) {
+				// only do the change if the item changes from true to false
+				// that means the item is revived
+				// TODO : the checking can be done inside the revive function
+				if (new_item_data.taken === false && old_item_data.taken === true) {
+					CVS.EVENT.onReviveItem(new_item_data);
+				}
+			}
+		})
 	});
 
 	player_events.observeChanges({

@@ -1,31 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" width="30" height="30" tilewidth="32" tileheight="32">
- <tileset firstgid="1" name="tmw_desert_spacing" tilewidth="32" tileheight="32" spacing="1">
-  <image source="tmw_desert_spacing.png" width="265" height="199"/>
-  <tile id="9">
-   <properties>
-    <property name="walkable" value="true"/>
-   </properties>
-  </tile>
-  <tile id="14">
-   <properties>
-    <property name="tracker" value="true"/>
-   </properties>
-  </tile>
-  <tile id="29">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="32" tileheight="32" nextobjectid="1">
+ <tileset firstgid="1" name="simplesheet" tilewidth="32" tileheight="32">
+  <image source="simplesheet.png" width="192" height="96"/>
+  <tile id="0">
    <properties>
     <property name="walkable" value="true"/>
    </properties>
   </tile>
  </tileset>
- <layer name="Layer1" width="30" height="30">
+ <layer name="layer1" width="30" height="30">
   <data encoding="base64" compression="zlib">
-   eJztlM0OQDAMgIcTTrjPjm7e/+0sQiLL+keHicOXLJn266arNcbYnxVHEIspPCVAddJvEd9O7WkA2uDbcYN79ju9XHLwniVWa2ovdkdf9EJ0nh5gIGKnCKnqxJyp3ZjziTNz4xyxT80JidMBYG6Nu4G8kHsM1lp15MYsIAcv1aMpvJy3ccwJ5ed6Je+Rk1Pbq9kvkpmn5ZXO9zd7XYSrPcV1afx/qVcr5wIjr2nt
-  </data>
- </layer>
- <layer name="layer2" width="30" height="30">
-  <data encoding="base64" compression="zlib">
-   eJztwQEBAAAAgiD/r25IQAEAAPBoDhAAAQ==
+   eJztlsEaABAIg8v7P7Sbq5iV6LBj31/ZoCKipaFmFIMbNZsHlzmPF9e6M4SLnM8uF93Tj9ydLHlkLSOXkVM2F7lLEd+iPd/sg4zcFR+cfHejfFC1b9cisv6do/orzdUBiG0D4Q==
   </data>
  </layer>
 </map>

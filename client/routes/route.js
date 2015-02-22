@@ -9,6 +9,7 @@ Router.map(function () {
 				Meteor.subscribe('online_users'),
 				Meteor.subscribe('all_player_events'),
 				Meteor.subscribe('all_player_data'),
+				Meteor.subscribe('all_map_items'),
 			];
 		},
 		path: '/'

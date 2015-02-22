@@ -17,6 +17,7 @@ CVS = {};
 	// configs and debugs
 	var config = {
 		players: [],
+		map_items: [],
 		lastClickedTile: {}
 	};
 
@@ -37,7 +38,6 @@ CVS = {};
 
 				// image for sprites
 			    game.load.spritesheet('player','sprites/archer.png', 64, 64, 169);
-			    game.load.image('cursor_tile', 'sprites/default.png');
 
 			    // for tiled maps
 			    game.load.tilemap('weirdmap', 'sprites/weirdmap.json', null, Phaser.Tilemap.TILED_JSON);
@@ -45,6 +45,9 @@ CVS = {};
 			    game.load.spritesheet('simplesheet', 'sprites/simplesheet.png', 32, 32);
 			}, 
 			create: function() {
+				// start physics arcade engine to enable collision detection
+				game.physics.startSystem(Phaser.Physics.ARCADE);
+
 				// world setup
 			    game.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
@@ -52,7 +55,6 @@ CVS = {};
 			    game.map.addTilesetImage('simplesheet', 'simplesheet');
 
 			    game.layer = game.map.createLayer('layer1');
-			    game.layer2 = game.map.createLayer('layer2');
 
 			    // add phaser astar plugin!
 			    game.astar = game.plugins.add(Phaser.Plugin.PathFinderPlugin);
@@ -70,7 +72,30 @@ CVS = {};
 
 			    // do preparations of dynamic sprites at this point
 			    onAfterInit();
-			}, 
+			},
+			update: function() {
+				if (!current_player) return;
+				// check collision between player and items
+				for (var i = config.map_items.length; i--;) {
+					var item = config.map_items[i];
+					game.physics.arcade.overlap(current_player.sprite, item.sprite, function(player_sprite, item_sprite) {
+						// apparently when you kill the sprite, it's still registered somewhere as still colliding in Phaser...
+						// so first do the kill for current client, and sprite.destroy() for all clients
+						item_sprite.kill();
+
+						onCurrentPlayerHitItem(current_player, item_sprite.item);
+					});
+				}
+			},
+			render: function() {
+				// DEBUG
+				// if (current_player) game.debug.body(current_player.sprite);
+				// if (config.map_items.length > 0) {
+				// 	_.each(config.map_items, function(item) {
+				// 		game.debug.body(item.sprite);
+				// 	});
+				// }
+			} 
 		});
 
 		// DEBUG
@@ -89,11 +114,17 @@ CVS = {};
 	var Player = function (user, data) {
 		this.game = game;
 		this.data = data;
-
-		this.sprite = game.add.sprite(this.data.pos.x*TILESIZE, this.data.pos.y*TILESIZE, 'player', 26);
 		this.user_id = user._id;
 
+		this.sprite = game.add.sprite(this.data.pos.x*TILESIZE, this.data.pos.y*TILESIZE, 'player', 26);
 		this.sprite.anchor.setTo(0.25, 0.5);
+
+		// set physics system so that it can detect collision with item
+		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
+		this.sprite.body.setSize(TILESIZE, TILESIZE, TILESIZE/4, TILESIZE/2);
+
+		this.sprite.player = this;
+
 
 		// animations for walk
 		this.sprite.animations.add('walk_up', getRange(1,8) , 30, true);
@@ -131,6 +162,7 @@ CVS = {};
 
 		this.state = 'active';
 		this.dir = 'down';
+		this.paths = [];
 
 		return this;
 	}
@@ -183,12 +215,6 @@ CVS = {};
 		        				self.paths = [];
 		        				self.sprite.animations.stop(null, true);
 		        				self.state = 'active';
-		        			
-			        			if (self.user_id === current_player.user_id) {
-			        				current_player.dir = dir;
-			        			} else {
-			        				self.dir = dir;
-			        			}
 		        			}
 		        		}, game);
 
@@ -223,7 +249,6 @@ CVS = {};
 	* then trigger another move
 	**/
 	Player.prototype.stopAtNearest = function (newPos) {
-
 		// only do it if the paths exist
 		if (!this.paths[0]) return;
 
@@ -279,7 +304,6 @@ CVS = {};
 		} else {
 			this.moveTo(newPos);
 		}
-
 	}
 
 	Player.prototype.shootArrow = function (pos) {
@@ -334,7 +358,7 @@ CVS = {};
 		}
 
 		this.setHealthBar();
-		this.setDamageText(damage);
+		this.setMessage(damage, '#ff0000');
 	}
 
 	Player.prototype.setHealthBar = function(damage) {
@@ -343,9 +367,12 @@ CVS = {};
 		this.healthbar.drawRect(0, 0, 2*TILESIZE*(this.data.hp/100), 4); // TODO: 100 should be from max_hp
 	}
 
-	Player.prototype.setDamageText = function(damage) {
-		var self = this;
+	Player.prototype.setMessage = function(text, color) {
+		color = color || '#ffffff';
+		var repeat = color === '#ff0000' ? 4 : 0; // shake the tween (with repeat) if it's a warning/damage (red color)
+		var duration = repeat === 4 ? 200 : 1500;
 
+		var self = this;
 		function clearDamageText() {
 			self.damagetween.stop();
 			if (self.damagetext) self.damagetext.destroy();
@@ -355,11 +382,11 @@ CVS = {};
 		if (this.damagetween && this.damagetween) clearDamageText();
 
 		// text for damage caption
-		this.damagetext = game.add.text(TILESIZE, -TILESIZE+10, damage, { font: '14px Arial', fill: '#ff0000', align: 'center' });
+		this.damagetext = game.add.text(TILESIZE, -TILESIZE+10, text, { font: '14px Arial', fill: color, align: 'center' });
 		this.damagetext.alpha = 1;
 		this.sprite.addChild(this.damagetext);
 
-		this.damagetween = game.add.tween(this.damagetext).to({y: -TILESIZE+12}, 200, Phaser.Easing.Linear.None, true, 0, 4, false);
+		this.damagetween = game.add.tween(this.damagetext).to({y: -TILESIZE+12}, duration, Phaser.Easing.Linear.None, true, 0, repeat, false);
 
 		this.damagetween.onComplete.add(clearDamageText);
 	}
@@ -388,6 +415,33 @@ CVS = {};
 		this.state = 'active';
 		// reset the frame
 		this.sprite.frame = 0;
+	}
+
+	Player.prototype.getItem = function(effect) {
+		effect = effect.split('+');
+		var type = effect[0];
+		var amount = parseInt(effect[1]);
+		var text_color = '#00ff00';
+
+		this.data[type] += amount;
+
+		this.setMessage(type.toUpperCase() + ' + ' + amount, text_color);
+
+		if (type === 'hp') {
+			if (this.data.hp > this.data.max_hp) this.data.hp = this.data.max_hp; 
+			this.setHealthBar();
+		} else {
+			if (this.status_arrow) this.sprite.removeChild(this.status_arrow);
+
+			this.status_arrow = game.add.sprite(-TILESIZE/2, -TILESIZE/2, 'simplesheet', 4);
+			this.sprite.addChild(this.status_arrow);
+		}
+	}
+
+	Player.prototype.restoreStatus = function(type) {
+		this.data[type] = this.data['max_'+type];
+		this.sprite.removeChild(this.status_arrow);
+		this.status_arrow = null;
 	}
 
 	// ------------------------------
@@ -440,6 +494,37 @@ CVS = {};
 
 	// ------------------------------
 	// Arrow funcs END
+	// --------------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------------
+	// Item funcs START
+	// ------------------------------
+
+	// the Item object
+	var Item = function (data) {
+		this.data_id = data._id;
+		this.data = data;
+
+		this.sprite = game.add.sprite(data.pos.x * TILESIZE, data.pos.y * TILESIZE, 'simplesheet', data.tilenum);
+		this.sprite.item = this;
+
+		if (this.sprite.taken) this.sprite.kill(); // kill the sprite if it's already taken
+
+		// set physics system so that it can detect collision with player
+		game.physics.enable(this.sprite, Phaser.Physics.ARCADE);
+
+		return this;
+	}
+
+	Item.prototype.taken = function() {
+		this.sprite.destroy(); // do the kill again bcs when player hits it, we maintain the visibility
+
+		config.map_items = _.without(config.map_items, this); // exclude it from the list
+	}
+
+
+	// ------------------------------
+	// Item funcs END
 	// --------------------------------------------------------------------------------------------------------------
 
 
@@ -659,7 +744,6 @@ CVS = {};
 	}
 
 	function onNewPlayerEvent(event) {
-
 		if (config.players.length === 0) {
 			console.warn('No players in the game');
 			return;
@@ -671,28 +755,42 @@ CVS = {};
 			return;
 		}
 
-		if (event.type === 'move') {
-			var new_pos = event.attr;
-			if (new_pos.x === undefined) new_pos.x = player.sprite.x;
-			if (new_pos.y === undefined) new_pos.y = player.sprite.y;
+		switch(event.type) {
+			case 'move':
+				var new_pos = event.attr;
+				// if player.paths exist, it means it's coming from the current player itself
+				if (player.paths.length > 0) {
+					player.stopAtNearest(new_pos);
+				} else {
+					// this means move another player
+					player.moveTo(new_pos);
+				}
 
-			// if player.paths exist, it means it's coming from the current player itself
-			if (player.paths && player.paths.length > 0) {
-				player.stopAtNearest(new_pos);
-			} else {
-				// this means move another player
-				player.moveTo(new_pos);
-			}
+				player.data.pos = new_pos;
+			break;
+			case 'attack':
+				if (event.attr.atk_type === 'bow') {
+					player.shootArrow(event.attr.pos);
+				}
+			break;
+			case 'get_damage':
+				player.getDamage(event.attr.damage, event.attr.attacking_user_id);
+			break;
+			case 'die':
+				player.die();
+			break;
+			case 'get_item':
+				var item = _.where(config.map_items, {
+					data_id : event.attr.item_id
+				}, true);
 
-			player.data.pos = new_pos;
-		} else if (event.type === 'attack') {
-			if (event.attr.atk_type === 'bow') {
-				player.shootArrow(event.attr.pos);
-			}
-		} else if (event.type === 'get_damage') {
-			player.getDamage(event.attr.damage, event.attr.attacking_user_id);
-		} else if (event.type === 'die') {
-			player.die();
+				player.getItem(item.data.effect);
+
+				item.taken();
+			break;
+			case 'restore_status' :
+				player.restoreStatus(event.attr.type);
+			break;
 		}
 	}
 
@@ -736,6 +834,40 @@ CVS = {};
 		});
 	}
 
+	function onInitMapItems(map_items) {
+		if (!map_items || map_items.length === 0) {
+			console.warn('No map items provided.');
+			return;
+		}
+
+		for (var i = map_items.length; i--;) {
+			var item_data = map_items[i];
+
+			var item = new Item(item_data);
+			config.map_items.push(item);
+		}
+	}
+
+	function onCurrentPlayerHitItem(player, item) {
+		Meteor.call('savePlayerEvent', {
+			user_id: Meteor.userId(),
+			type: 'get_item',
+			attr: {
+				item_id : item.data._id,
+				effect : item.data.effect,
+				next_pos : {
+					x : randomizer(30),
+					y : randomizer(30)
+				}
+			}
+		});
+	}
+
+	function onReviveItem(item_data) {
+		var item = new Item(item_data);
+		config.map_items.push(item);
+	}
+
 	// ------------------------------
 	// event funcs END
 	// --------------------------------------------------------------------------------------------------------------
@@ -761,12 +893,6 @@ CVS = {};
 		}, true);
 	}
 
-	function getPlayerByPos(pos) {
-		return _.find(config.players, function(player) {
-			return player.data.pos.x === pos.x && player.data.pos.y === pos.y;
-		});
-	}
-
 	function setPlayerAttributeByUserId(user_id, attr) {
 		var player = _.where(config.players, {
 			user_id : user_id
@@ -777,6 +903,17 @@ CVS = {};
 		}
 
 		return player;
+	}
+
+	// debug
+	function currentPlayerGoTo(tilex, tiley) {
+		onClickGameWorld({
+			worldX : tilex * TILESIZE,
+			worldY : tiley * TILESIZE
+		});
+
+		cursor_tile_sprite.x = tilex * TILESIZE;
+		cursor_tile_sprite.y = tiley * TILESIZE;
 	}
 
 
@@ -793,7 +930,13 @@ CVS = {};
 	CVS.EVENT = {
 		onPlayerLoggedIn : onPlayerLoggedIn,
 		onPlayerLoggedOut : onPlayerLoggedOut,
-		onNewPlayerEvent : onNewPlayerEvent
+		onNewPlayerEvent : onNewPlayerEvent,
+		onInitMapItems : onInitMapItems,
+		onReviveItem : onReviveItem
+	};
+
+	CVS.DEBUG = {
+		currentPlayerGoTo : currentPlayerGoTo
 	};
 
 })();
