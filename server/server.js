@@ -161,7 +161,15 @@ Meteor.methods({
 							attr : {
 								type : effect_type
 							}
-						})
+						});
+
+						props[effect_type] = props['max_'+effect_type];
+
+						PlayerData.update({
+							user_id : affected_player.user_id,
+						}, {
+							$set : props
+						});
 					}, 10000);
 				}
 			break;
