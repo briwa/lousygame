@@ -64,7 +64,7 @@ CVS = {};
 			    game.input.addMoveCallback(onMoveMouse, this);
 
 			    keys.attack = game.input.keyboard.addKey(Phaser.Keyboard.SHIFT);
-			    keys.attack.onDown.add(onPressAttackKey);
+			    keys.attack.onDown.add(onDownAttackKey);
 
 			   	cursor_tile_sprite = game.add.sprite(-TILESIZE, -TILESIZE, 'simplesheet', 2);
 
@@ -331,7 +331,7 @@ CVS = {};
 			// only send the event for one user only
 			// remember, we're updating every client here
 			if (this.user_id === current_player.user_id) {
-				onPlayerDies(this, attacking_user_id);
+				onCurrentPlayerDie(this, attacking_user_id);
 			}
 		} else {
 			this.data.hp -= damage;	
@@ -593,7 +593,7 @@ CVS = {};
 					onCurrentPlayerAttack(newPos);
 				} else {
 					// trigger moving instead
-					onPressAttackKey();
+					onDownAttackKey();
 					onClickGameWorld(pointer);
 				}
 			break;
@@ -607,7 +607,7 @@ CVS = {};
 		cursor_tile_sprite.y = getTilePos( pointer.worldY );
 	}
 
-	function onPressAttackKey() {
+	function onDownAttackKey() {
 		if (!current_player) return;
 
 		// only allow attacking if the state is either active or active-attack
@@ -730,7 +730,7 @@ CVS = {};
 		});
 	}
 
-	function onPlayerDies(died_player, killer_user_id) {
+	function onCurrentPlayerDie(died_player, killer_user_id) {
 		Meteor.call('savePlayerEvent', {
 			user_id: Meteor.userId(),
 			type: 'die',
