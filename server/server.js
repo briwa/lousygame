@@ -38,6 +38,17 @@ Meteor.startup(function() {
 			});
 		}
 	}
+
+	// create dummy account every server startup
+	if (Meteor.users.find({}).fetch().length === 0) {
+		for (var i = 1; i <= 3; i++) {
+			Accounts.createUser({
+				username: 'user'+i,
+				email : 'user'+i+'@admin.com',
+				password: 'hahaha' 
+			});
+		}
+	}
 });
 
 Accounts.onCreateUser(function (options, user) {

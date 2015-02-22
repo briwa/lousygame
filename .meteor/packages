@@ -9,5 +9,5 @@ iron:router
 mrt:moment
 mrt:bootstrap-3
 accounts-password
-accounts-ui
 mizzao:user-status
+mrt:accounts-ui-bootstrap-3
