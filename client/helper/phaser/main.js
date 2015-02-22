@@ -90,7 +90,7 @@ CVS = {};
 		this.game = game;
 		this.data = data;
 
-		this.sprite = game.add.sprite(getTilePos(this.data.pos.x*TILESIZE), getTilePos(this.data.pos.y*TILESIZE), 'player', 26);
+		this.sprite = game.add.sprite(this.data.pos.x*TILESIZE, this.data.pos.y*TILESIZE, 'player', 26);
 		this.user_id = user._id;
 
 		this.sprite.anchor.setTo(0.25, 0.5);
@@ -272,15 +272,11 @@ CVS = {};
 
 			var self = this;
 			tween.onComplete.add(function() {
-
 				self.moveTo(newPos);
-
 			}, game);
 
 			tween.start();
-
 		} else {
-
 			this.moveTo(newPos);
 		}
 
