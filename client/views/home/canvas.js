@@ -13,6 +13,8 @@ Template.canvas.rendered = function() {
 				}, 0);
 			},
 			removed: function(user) {
+				// TODO : apparently when user refresh their browser, it's considered as logout..
+				// need a better way to check it
 				CVS.EVENT.onPlayerLoggedOut(user, user._id === Meteor.userId());
 			},
 		});

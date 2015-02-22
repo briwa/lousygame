@@ -141,49 +141,47 @@ CVS = {};
 	* TODO: - animation when moving player
 	**/
 	Player.prototype.moveTo = function (endPos) {
-
+		// set the state as moving to prevent attacking while moving
 		this.state = 'moving';
 
 		var self = this;
-
 		game.astar.setCallbackFunction(function(paths) {
-	    	
 	    	if (paths) {
-		 
+		 		
 		 		// reset current paths
 		 		self.paths = [];
-
 		        for(var i = 0; i < paths.length; i++) {
 
-	            	var path = getDir( paths, i, self );
-	            	
+		        	// find a 'joint' between paths and add it to self.paths for tween (see getDir)
+	            	var path = getDir(paths, i, self);
+
+	            	// only add tween if it returns a joint
 	            	if (path) {
-
-            			var tween = game.add.tween(self.sprite);
-
+						var tween = game.add.tween(self.sprite);
             			tween.to({
 	            			x: path.x * TILESIZE,
 	            			y: path.y * TILESIZE,
 	            		}, 2500/self.data.mspeed * path.dist );
 
+            			// add an animation everytime the tween start
 	            		tween.onStart.add(function() {
-	            			// sprite animation with direction goes here
 	            			if (self.paths[0])
 	            				self.sprite.animations.play('walk_'+self.paths[0].dir);
 		        		}, game);	        	
 
+	            		// everytime a tween ends, decide whether to tween to the next joint or just stop
 			        	tween.onComplete.add(function() {
+			        		
 			        		var dir = self.paths[0].dir;
-
 		        			self.paths.shift();
 
+		        			// there's still path, tween to the next
 		        			if (self.paths[0]) {
 		        				self.paths[0]._tween.start();
 		        			} else {
-		        				self.paths = null;
-
+		        				// reset back everything
+		        				self.paths = [];
 		        				self.sprite.animations.stop(null, true);
-
 		        				self.state = 'active';
 		        			
 			        			if (self.user_id === current_player.user_id) {
@@ -192,21 +190,19 @@ CVS = {};
 			        				self.dir = dir;
 			        			}
 		        			}
-
 		        		}, game);
 
 			        	// passing path as reference
 			        	tween._path = path;
 		        		path._tween = tween;
 
-
+		        		// add path to the paths list to make a chained tween
 		        		self.paths.push(path);
-
 	            	}
 	        	}
 
+	        	// start the first path to start the chain
 	        	self.paths[0]._tween.start();
-
 	        }
         	
 	    });
@@ -215,6 +211,8 @@ CVS = {};
 		var endTile = [endPos.x, endPos.y];
 
 	    game.astar.preparePathCalculation(startTile, endTile);
+	    
+	    // we calculate the path, and when we're done the setCallback will be run with paths (if any)
 	    game.astar.calculatePath();
 
 	}
@@ -227,7 +225,7 @@ CVS = {};
 	Player.prototype.stopAtNearest = function (newPos) {
 
 		// only do it if the paths exist
-		if (!this.paths) return false;
+		if (!this.paths[0]) return;
 
 		this.state = 'moving';
 
@@ -259,7 +257,7 @@ CVS = {};
 		}
 
 		this.paths[0]._tween.stop();
-		this.paths = null;
+		this.paths = [];
 
 
 		// sometimes the difference between current pos and nearest tile is too small and will return the duration to zero
@@ -683,7 +681,7 @@ CVS = {};
 			if (new_pos.y === undefined) new_pos.y = player.sprite.y;
 
 			// if player.paths exist, it means it's coming from the current player itself
-			if (player.paths) {
+			if (player.paths && player.paths.length > 0) {
 				player.stopAtNearest(new_pos);
 			} else {
 				// this means move another player
