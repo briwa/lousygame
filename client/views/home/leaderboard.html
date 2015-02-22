@@ -1,0 +1,8 @@
+<template name="leaderboard">
+	{{ #each playerData }}
+		<div class="col-xs-4 center">
+			<h2>{{ name }}</h2>
+			<p>Score : {{ gold }} gold</p>
+		</div>
+	{{ /each }}
+</template>

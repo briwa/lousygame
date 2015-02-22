@@ -1,5 +1,4 @@
 Template.canvas.rendered = function() {
-	// WARNING : for now it is assumed the users and userpos length is the same
 	var users = Meteor.users.find({});
 	var player_events = PlayerEvents.find({});
 	var map_items = MapItemData.find({});

@@ -5,8 +5,7 @@ var randomizer = function (value) {
 var RESPAWN_POSITION = [{x: 1, y: 1}, {x: 28, y: 1}, {x: 28, y: 28}, {x: 1, y: 28}]; // TODO : duplicate code in client and server
 
 Meteor.startup(function() {
-	// TODO : find a better way to do this
-	PlayerEvents.remove({});
+	Meteor.call('clearPlayerEvents');
 
 	// TODO : find a better way to do this
 	if (MapItemData.find({}).fetch().length === 0) {
@@ -184,5 +183,10 @@ Meteor.methods({
 			break;
 
 		}
+	},
+
+	clearPlayerEvents: function() {
+
+		return PlayerEvents.remove({});
 	}
 })
