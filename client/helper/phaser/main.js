@@ -102,9 +102,6 @@ CVS = {};
 				// }
 			} 
 		});
-
-		// DEBUG
-		window.game = game;
 	}
 
 	// ------------------------------
@@ -419,6 +416,9 @@ CVS = {};
 
 		// reset the frame
 		this.sprite.frame = 26;
+
+		// reset the pos into the now respawn pos
+		this.data.pos = next_respawn_pos;
 	}
 
 	Player.prototype.getItem = function(effect) {
@@ -896,6 +896,9 @@ CVS = {};
 	// event funcs END
 	// --------------------------------------------------------------------------------------------------------------
 
+	// ------------------------------
+	// debug funcs START
+	// --------------------------------------------------------------------------------------------------------------
 
 	function getGame() {
 		return game;
@@ -917,21 +920,6 @@ CVS = {};
 		}, true);
 	}
 
-	function setPlayerAttributeByUserId(user_id, attr) {
-		var player = _.where(config.players, {
-			user_id : user_id
-		}, true);
-
-		if (!player) return;
-
-		for (var key in attr) {
-			if (attr.hasOwnProperty(key)) player[key] = attr[key];
-		}
-
-		return player;
-	}
-
-	// debug
 	function currentPlayerGoTo(tilex, tiley) {
 		onClickGameWorld({
 			worldX : tilex * TILESIZE,
@@ -941,6 +929,10 @@ CVS = {};
 		cursor_tile_sprite.x = tilex * TILESIZE;
 		cursor_tile_sprite.y = tiley * TILESIZE;
 	}
+
+	// ------------------------------
+	// debug funcs END
+	// --------------------------------------------------------------------------------------------------------------
 
 
 	CVS.MAIN = {
@@ -956,12 +948,12 @@ CVS = {};
 		onReviveItem : onReviveItem
 	};
 
-	// CVS.DEBUG = {
-	// 	currentPlayerGoTo : currentPlayerGoTo
-	// 	getGame: getGame,
-	// 	getConfig: getConfig,
-	// 	getCurrentPlayer: getCurrentPlayer,
-	// 	getPlayerByUserId : getPlayerByUserId,
-	// };
+	CVS.DEBUG = {
+		currentPlayerGoTo : currentPlayerGoTo,
+		getGame: getGame,
+		getConfig: getConfig,
+		getCurrentPlayer: getCurrentPlayer,
+		getPlayerByUserId : getPlayerByUserId,
+	};
 
 })();
