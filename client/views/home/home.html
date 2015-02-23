@@ -12,12 +12,17 @@
 
 	<div class="container">
 		{{ #if currentUser }}
-			{{ > canvas }}
+			{{ #if currentUser.connection_out }}
+				{{ > boarding_connection }}
+			{{ else }}
+				{{ > canvas }}	
+			{{ /if }}
 		{{ else }}
 			{{ > boarding }}
 		{{ /if }}
 	</div>
 	<div class="container">
+		<h3 id="highscore-title" class="center">Highscores</h3>
 		{{ > leaderboard }}
 	</div>
 </template>

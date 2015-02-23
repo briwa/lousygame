@@ -51,9 +51,6 @@ Meteor.startup(function() {
 });
 
 Accounts.onCreateUser(function (options, user) {
-	// TODO : - 800 and 600 is supposed to be the world's size, find a way to get a global vars for client AND server
-	//        - non-walkable tiles should be taken in account, so x y pos should exclude those non-walkables
-
 	PlayerData.insert({
 		user_id: user._id,
 		name: user.username,
@@ -71,7 +68,6 @@ Accounts.onCreateUser(function (options, user) {
 	});
 
 	return user;
-
 });
 
 Meteor.methods({
@@ -188,4 +184,25 @@ Meteor.methods({
 	clearPlayerEvents: function() {
 		return PlayerEvents.remove({});
 	}
-})
+});
+
+UserStatus.events.on('connectionLogout', function(fields) { 
+	var user_exceptions = ['user1', 'user2', 'user3'];
+	var user = Meteor.users.findOne(fields.userId);
+
+	if (!user.connection_out && user_exceptions.indexOf(user.username) === -1) {
+		Meteor.users.update({_id : user._id}, {
+			$set: {
+				connection_out : true
+			}
+		});
+
+		Meteor.setTimeout(function() {
+			Meteor.users.update({_id : user._id}, {
+				$set: {
+					connection_out : false
+				}
+			});
+		}, 10000);
+	} 
+});
