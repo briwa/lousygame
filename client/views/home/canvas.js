@@ -33,11 +33,16 @@ Template.canvas.rendered = function() {
 		})
 	});
 
-	player_events.observeChanges({
+	player_events.observe({
 		// TODO : so this added function is called for all events, the past event and the new events
 		// we should exclude the past events
-		added: function(event_id, event) {
+		added: function(event) {
 			CVS.EVENT.onNewPlayerEvent(event);
+
+			// clear the event after we got the information. The goal is to make the db more efficient
+			// and to prevent cluttering clients data
+			// TODO find a better way to do this
+			Meteor.call('clearPlayerEvents');
 		}
 	});
 

@@ -186,7 +186,6 @@ Meteor.methods({
 	},
 
 	clearPlayerEvents: function() {
-
 		return PlayerEvents.remove({});
 	}
 })
