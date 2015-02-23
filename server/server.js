@@ -107,7 +107,7 @@ Meteor.methods({
 					user_id : killer.user_id,
 				}, {
 					$set : {
-						'gold' : 250, // TODO : make it dynamic
+						'gold' : killer.gold += 250, // TODO : make it dynamic
 						'exp' : killer.exp += 100 // TODO : make it dynamic
 					}
 				});

@@ -231,7 +231,11 @@ CVS = {};
 	        	}
 
 	        	// start the first path to start the chain
-	        	self.paths[0]._tween.start();
+
+	        	// there's a chance that we couldn't make up with any chains of paths
+	        	// either the astar failed, or the path is just bizzare... so that's why the checking is necessary
+	        	// TODO find out why there's no joint found
+	        	if (self.paths[0]) self.paths[0]._tween.start();
 	        }
         	
 	    });
@@ -255,7 +259,7 @@ CVS = {};
 		// only do it if the paths exist
 		if (!this.paths[0]) return;
 
-		this.state = 'moving';
+		this.state = 'stop_at_nearest';
 
 		var nearestTile = {};
 		var duration;
@@ -323,10 +327,6 @@ CVS = {};
 		} else {
 			dir = 'down';
 		}
-
-		setPlayerAttributeByUserId(this.user_id, {
-			state : 'attack'
-		});
 
 		this.sprite.animations.play('attack_bow_'+dir, this.data.atkspeed*3, false);
 
@@ -481,9 +481,11 @@ CVS = {};
 		var self = this;
 		tween.onComplete.add(function() {
 			self.sprite.kill();
-			setPlayerAttributeByUserId(options.player.user_id, {
-				state : options.player.attackarea.alpha ? 'active-attack' : 'active'
-			});
+			
+			// update player's state only if it's coming from current
+			if (options.player.user_id === current_player.user_id) {
+				current_player.state = current_player.attackarea.alpha ? 'active-attack' : 'active';
+			}
 
 			// check if the arrow hit someone and only save if it's the current client
 			if (options.pos.x === current_player.data.pos.x && options.pos.y === current_player.data.pos.y) {
@@ -689,6 +691,8 @@ CVS = {};
 				config.last_clicked_tile = new_pos;
 			break;
 			case 'active-attack':
+				current_player.state = 'attack';
+
 				var point = new Phaser.Point(new_pos.x*TILESIZE, new_pos.y*TILESIZE);
 
 				// only allow the player to shoot if target is within range
@@ -780,11 +784,11 @@ CVS = {};
 		switch(event.type) {
 			case 'move':
 				var new_pos = event.attr;
-				// if player.paths exist, it means it's coming from the current player itself
+				// if player.paths exist, it means the player is on the move, so need to stop somewhere
 				if (player.paths.length > 0) {
 					player.stopAtNearest(new_pos);
 				} else {
-					// this means move another player
+					// this means player has no paths to go, just go directly to the path
 					player.moveTo(new_pos);
 				}
 
@@ -918,6 +922,8 @@ CVS = {};
 			user_id : user_id
 		}, true);
 
+		if (!player) return;
+
 		for (var key in attr) {
 			if (attr.hasOwnProperty(key)) player[key] = attr[key];
 		}
@@ -940,11 +946,6 @@ CVS = {};
 	CVS.MAIN = {
 		init: init,
 
-		getGame: getGame,
-		getConfig: getConfig,
-		getCurrentPlayer: getCurrentPlayer,
-		getPlayerByUserId : getPlayerByUserId,
-
 	};
 
 	CVS.EVENT = {
@@ -955,8 +956,12 @@ CVS = {};
 		onReviveItem : onReviveItem
 	};
 
-	CVS.DEBUG = {
-		currentPlayerGoTo : currentPlayerGoTo
-	};
+	// CVS.DEBUG = {
+	// 	currentPlayerGoTo : currentPlayerGoTo
+	// 	getGame: getGame,
+	// 	getConfig: getConfig,
+	// 	getCurrentPlayer: getCurrentPlayer,
+	// 	getPlayerByUserId : getPlayerByUserId,
+	// };
 
 })();
