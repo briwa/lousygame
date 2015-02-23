@@ -1,3 +1,6 @@
+// TODO :
+// - review timeout-related events (item effects)
+
 CVS = {};
 
 (function(){
@@ -165,6 +168,7 @@ CVS = {};
 		this.state = 'active';
 		this.dir = 'down';
 		this.paths = [];
+		this.effects = [];
 
 		return this;
 	}
@@ -431,6 +435,7 @@ CVS = {};
 
 		this.setMessage(type.toUpperCase() + ' + ' + amount, text_color);
 
+		// if it's hp, don't put the green arrow status. just update the healthbar
 		if (type === 'hp') {
 			if (this.data.hp > this.data.max_hp) this.data.hp = this.data.max_hp; 
 			this.setHealthBar();
@@ -439,13 +444,20 @@ CVS = {};
 
 			this.status_arrow = game.add.sprite(-TILESIZE/2, -TILESIZE/2, 'simplesheet', 4);
 			this.sprite.addChild(this.status_arrow);
+
+			// store the effect to effects list since it's a temporary effect
+			this.effects.push(type);
 		}
 	}
 
 	Player.prototype.restoreStatus = function(type) {
 		this.data[type] = this.data['max_'+type];
-		this.sprite.removeChild(this.status_arrow);
-		this.status_arrow = null;
+
+		this.effects.splice(this.effects.indexOf(type), 1);
+		if (this.effects.length === 0) {
+			this.sprite.removeChild(this.status_arrow);
+			this.status_arrow = null;
+		}
 	}
 
 	// ------------------------------
