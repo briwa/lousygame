@@ -3,7 +3,6 @@
 ### How to install
 
 * Clone this repository
-
 * Install NodeJS and npm
 
 Linux : 
