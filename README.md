@@ -1,15 +1,32 @@
 ## Lousygame : integrating Meteor 1.0 Javascript framework with Phaser 2.1, Javascript game engine
 
 ### How to install
+
 * Clone this repository
+* 
+* Install NodeJS and npm
+
+Linux : 
+```bash
+sudo apt-get install nodejs
+sudo apt-get install npm
+```
+
+Mac (npm is bundled inside node) : 
+```bash
+brew install node
+```
+
 * Install Meteor
 ```bash
 curl https://install.meteor.com/ | sh
 ```
+
 * ...or update your Meteor if you have it installed already
 ```bash
 meteor update
 ```
+
 * Run Meteor in the cloned directory
 ```bash
 meteor
