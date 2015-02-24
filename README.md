@@ -6,6 +6,10 @@
 ```bash
 curl https://install.meteor.com/ | sh
 ```
+* ...or update your Meteor if you have it installed already
+```bash
+meteor update
+```
 * Run Meteor in the cloned directory
 ```bash
 meteor
