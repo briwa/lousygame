@@ -698,6 +698,10 @@ CVS = {};
 		switch (current_player.state) {
 			case 'active':
 			case 'moving':
+				// set player state to something not active and not moving, so that it won't spam requests 
+				// if the moving animation is not yet there
+				current_player.state = 'active-moving';
+
 				onCurrentPlayerMove(new_pos);
 
 				config.last_clicked_tile = new_pos;
